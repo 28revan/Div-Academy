@@ -1,6 +1,5 @@
 import express from 'express';
 import helmet from 'helmet';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDB } from './server/dataService.js';
@@ -19,13 +18,15 @@ const PORT = process.env.PORT || 3000;
 
 export const app = express();
 
-// Initialize and configure the server
-try {
-  await initDB();
-  await seedDB();
-} catch (error) {
-  console.error('Database initialization failed:', error);
-}
+// Initialization helper
+const initializeApp = async () => {
+  try {
+    await initDB();
+    await seedDB();
+  } catch (error) {
+    console.error('Database initialization failed:', error);
+  }
+};
 
 // Security Middlewares
 app.use(helmet({
@@ -33,6 +34,13 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 app.use(express.json({ limit: '1mb' }));
+
+// Ensure API responses are ALWAYS JSON and don't cache
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  next();
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -45,7 +53,6 @@ app.post('/api/cv/generate', async (req, res) => {
   try {
     const { cvData, user, projects } = req.body;
     
-    // Basic protection against empty payloads
     if (!user || !user.name) {
        return res.status(400).json({ error: 'Tam məlumat təmin edilməyib' });
     }
@@ -66,8 +73,19 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', serverTime: new Date().toISOString() });
 });
 
-// Vite middleware for development
+// Global API error handler
+app.use('/api', (err, req, res, next) => {
+  console.error('API Error:', err);
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Daxili server xətası',
+    path: req.path
+  });
+});
+
+// Static files and Vite integration
 if (process.env.NODE_ENV !== 'production') {
+  // Dynamic import for Vite to avoid production dependency issues
+  const { createServer: createViteServer } = await import('vite');
   const vite = await createViteServer({
     server: { middlewareMode: true },
     appType: 'spa',
@@ -76,16 +94,26 @@ if (process.env.NODE_ENV !== 'production') {
 } else {
   const distPath = path.join(__dirname, 'dist');
   app.use(express.static(distPath));
+  
+  // SPA fallback for non-API routes
   app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API marşrutu tapılmadı' });
+    }
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
 
-// Local development or classic Node hosting
+// Startup
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  await initializeApp();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
+} else {
+  // On Vercel, initialization happens when the function is first called
+  // and we don't call app.listen
+  await initializeApp();
 }
 
 export default app;
