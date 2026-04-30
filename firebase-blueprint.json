@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user (Admin, Teacher, Mentor, Student)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Teacher", "Mentor", "Student"] },
+        "status": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "balance": { "type": "number" },
+        "scholarship": { "type": "string" },
+        "attendance": { "type": "number" },
+        "totalLessons": { "type": "number" },
+        "attendedLessons": { "type": "number" },
+        "groupId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Group": {
+      "title": "Group",
+      "description": "Educational group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "mentorId": { "type": "string" },
+        "students": { "type": "array", "items": { "type": "string" } },
+        "progress": { "type": "number" },
+        "avgGrade": { "type": "number" },
+        "health": { "type": "string" },
+        "schedule": {
+          "type": "object",
+          "properties": {
+            "days": { "type": "array", "items": { "type": "string" } },
+            "time": { "type": "string" }
+          }
+        }
+      }
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Assignment for students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "groupId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student task submission",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "content": { "type": "string" },
+        "status": { "type": "string" },
+        "grade": { "type": "number" },
+        "feedback": { "type": "string" },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Log": {
+      "title": "Log",
+      "description": "System activity log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "uid": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userRole": { "type": "string" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "ip": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Main user collection"
+    },
+    "/groups/{groupId}": {
+      "schema": "Group",
+      "description": "Class groups"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Assignments"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Student work"
+    },
+    "/logs/{logId}": {
+      "schema": "Log",
+      "description": "Audit trails"
+    }
+  }
+}

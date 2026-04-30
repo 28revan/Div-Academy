@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isAdmin() { return isSignedIn() && getUserData().role == 'Admin'; }
+    function hasRole(role) { return isSignedIn() && getUserData().role == role; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin() || hasRole('Teacher'));
+      allow list: if isAdmin();
+      
+      function isValidUser(data) {
+        return data.keys().hasAll(['uid', 'name', 'email', 'role']) &&
+               data.uid is string && data.name is string && data.name.size() <= 100 &&
+               data.email is string && data.email.size() <= 100 &&
+               data.role in ['Admin', 'Teacher', 'Mentor', 'Student'];
+      }
+
+      allow create: if isAdmin() && isValidUser(incoming());
+      allow update: if (isAdmin() || (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid', 'email']))) && isValidUser(incoming());
+    }
+
+    // --- Groups ---
+    match /groups/{groupId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- Tasks ---
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || hasRole('Teacher');
+      allow delete: if isAdmin();
+    }
+
+    // --- Submissions ---
+    match /submissions/{submissionId} {
+      allow read: if isSignedIn() && (isAdmin() || hasRole('Teacher') || hasRole('Mentor') || isOwner(existing().studentId));
+      allow create: if hasRole('Student') && isOwner(incoming().studentId);
+      allow update: if (isAdmin() || hasRole('Teacher') || hasRole('Mentor')) || (isOwner(existing().studentId) && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'submittedAt']));
+    }
+
+    // --- Logs ---
+    match /logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+    }
+  }
+}

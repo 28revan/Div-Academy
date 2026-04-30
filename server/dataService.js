@@ -1,9 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const DATA_FILE = path.resolve(process.cwd(), 'db.json');
 
 export async function readDB() {
@@ -28,7 +25,6 @@ export async function writeDB(data) {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
   } catch (error) {
     console.error('Data persistence failed (this is expected on Vercel production):', error.message);
-    // On serverless environments, we continue without persisting
   }
 }
 
@@ -41,7 +37,8 @@ export async function initDB() {
       groups: [],
       tasks: [],
       submissions: [],
-      logs: []
+      logs: [],
+      attendance: []
     });
   }
 }
@@ -64,12 +61,12 @@ export async function addLog(user, type, description, ip = '127.0.0.1') {
   if (!data.logs) data.logs = [];
   data.logs.push(logEntry);
   
-  // Cleanup: Remove logs older than 30 days
+  // Cleanup
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
   data.logs = data.logs.filter(log => new Date(log.timestamp) > thirtyDaysAgo);
   
   await writeDB(data);
   return logEntry;
 }
+
