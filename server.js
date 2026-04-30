@@ -101,13 +101,13 @@ app.all('/api/*', (req, res) => {
 
 // Static files and Vite integration
 if (process.env.NODE_ENV !== 'production') {
-  // Dynamic import for Vite to avoid production dependency issues
-  const { createServer: createViteServer } = await import('vite');
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: 'spa',
-  });
-  app.use(vite.middlewares);
+  import('vite').then(async ({ createServer: createViteServer }) => {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  }).catch(err => console.error('Vite initialization failed', err));
 } else {
   const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
