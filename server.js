@@ -19,71 +19,72 @@ const PORT = process.env.PORT || 3000;
 
 export const app = express();
 
-export async function configureServer() {
+// Initialize and configure the server
+try {
   await initDB();
   await seedDB();
-  
-  // Security Middlewares
-  app.use(helmet({
-    contentSecurityPolicy: false, 
-    crossOriginEmbedderPolicy: false
-  }));
-  app.use(express.json({ limit: '1mb' }));
+} catch (error) {
+  console.error('Database initialization failed:', error);
+}
 
-  // API Routes
-  app.use('/api/auth', authRoutes);
-  app.use('/api/admin', adminRoutes);
-  app.use('/api/student', studentRoutes);
-  app.use('/api', teacherRoutes);
+// Security Middlewares
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+app.use(express.json({ limit: '1mb' }));
 
-  // Server-side CV Generation (Senior Security Implementation)
-  app.post('/api/cv/generate', async (req, res) => {
-    try {
-      const { cvData, user, projects } = req.body;
-      
-      // Basic protection against empty payloads
-      if (!user || !user.name) {
-         return res.status(400).json({ error: 'Tam məlumat təmin edilməyib' });
-      }
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api', teacherRoutes);
 
-      const buffer = await generateCVBuffer(cvData, user, projects);
-      
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(user.name)}_CV.docx"`);
-      res.send(buffer);
-    } catch (error) {
-      console.error('CV Generation Error:', error);
-      res.status(500).json({ error: 'Server tərəfində sənəd yaradılarkən xəta baş verdi' });
+// Server-side CV Generation (Senior Security Implementation)
+app.post('/api/cv/generate', async (req, res) => {
+  try {
+    const { cvData, user, projects } = req.body;
+    
+    // Basic protection against empty payloads
+    if (!user || !user.name) {
+       return res.status(400).json({ error: 'Tam məlumat təmin edilməyib' });
     }
-  });
 
-  // Health check
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', serverTime: new Date().toISOString() });
-  });
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    const buffer = await generateCVBuffer(cvData, user, projects);
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(user.name)}_CV.docx"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('CV Generation Error:', error);
+    res.status(500).json({ error: 'Server tərəfində sənəd yaradılarkən xəta baş verdi' });
   }
+});
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', serverTime: new Date().toISOString() });
+});
+
+// Vite middleware for development
+if (process.env.NODE_ENV !== 'production') {
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: 'spa',
+  });
+  app.use(vite.middlewares);
+} else {
+  const distPath = path.join(__dirname, 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 }
 
 // Local development or classic Node hosting
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  configureServer().then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://0.0.0.0:${PORT}`);
-    });
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
 

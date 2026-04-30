@@ -12,7 +12,12 @@ export async function readDB() {
 }
 
 export async function writeDB(data) {
-  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+  try {
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Data persistence failed (this is expected on Vercel production):', error.message);
+    // On serverless environments, we continue without persisting
+  }
 }
 
 export async function initDB() {
