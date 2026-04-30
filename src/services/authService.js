@@ -11,8 +11,9 @@ export const AuthService = {
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       const text = await response.text();
+      const snippet = text.substring(0, 100).replace(/<[^>]*>/g, '').trim();
       console.error('Non-JSON response from server:', text);
-      throw new Error('Server JSON cavabı qaytarmadı. API marşrutu düzgün qurulmayıb və ya serverdə xəta baş verib.');
+      throw new Error(`Server JSON cavabı qaytarmadı. Cavab başlığı: "${snippet}...". API marşrutu düzgün qurulmayıb və ya serverdə xəta baş verib.`);
     }
     
     if (!response.ok) {

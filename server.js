@@ -18,11 +18,15 @@ const PORT = process.env.PORT || 3000;
 
 export const app = express();
 
-// Initialization helper
+// Initialization singleton
+let isInitialized = false;
 const initializeApp = async () => {
+  if (isInitialized) return;
   try {
     await initDB();
     await seedDB();
+    isInitialized = true;
+    console.log('Database initialized successfully');
   } catch (error) {
     console.error('Database initialization failed:', error);
   }
@@ -34,6 +38,14 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 app.use(express.json({ limit: '1mb' }));
+
+// Initialization middleware for Vercel/Serverless
+app.use(async (req, res, next) => {
+  if (!isInitialized) {
+    await initializeApp();
+  }
+  next();
+});
 
 // Ensure API responses are ALWAYS JSON and don't cache
 app.use('/api', (req, res, next) => {
@@ -82,6 +94,11 @@ app.use('/api', (err, req, res, next) => {
   });
 });
 
+// API routes matched, anything else starting with /api is a 404 JSON
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API marşrutu tapılmadı', path: req.path });
+});
+
 // Static files and Vite integration
 if (process.env.NODE_ENV !== 'production') {
   // Dynamic import for Vite to avoid production dependency issues
@@ -92,28 +109,22 @@ if (process.env.NODE_ENV !== 'production') {
   });
   app.use(vite.middlewares);
 } else {
-  const distPath = path.join(__dirname, 'dist');
+  const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
   
   // SPA fallback for non-API routes
   app.get('*', (req, res) => {
-    if (req.path.startsWith('/api')) {
-      return res.status(404).json({ error: 'API marşrutu tapılmadı' });
-    }
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
 
 // Startup
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  await initializeApp();
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  initializeApp().then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
   });
-} else {
-  // On Vercel, initialization happens when the function is first called
-  // and we don't call app.listen
-  await initializeApp();
 }
 
 export default app;

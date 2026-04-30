@@ -4,11 +4,23 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_FILE = path.resolve(__dirname, '../db.json');
+const DATA_FILE = path.resolve(process.cwd(), 'db.json');
 
 export async function readDB() {
-  const content = await fs.readFile(DATA_FILE, 'utf-8');
-  return JSON.parse(content);
+  try {
+    const content = await fs.readFile(DATA_FILE, 'utf-8');
+    return JSON.parse(content);
+  } catch (error) {
+    console.error('Database read failed, using empty default:', error.message);
+    return {
+      users: [],
+      groups: [],
+      tasks: [],
+      submissions: [],
+      logs: [],
+      attendance: []
+    };
+  }
 }
 
 export async function writeDB(data) {
