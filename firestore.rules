@@ -10,7 +10,12 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    function isAdmin() { return isSignedIn() && getUserData().role == 'Admin'; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == 'revaneliyev133@gmail.com' ||
+        (getUserData() != null && getUserData().role == 'Admin')
+      ); 
+    }
     function hasRole(role) { return isSignedIn() && getUserData().role == role; }
     function isEmailVerified() { return request.auth.token.email_verified == true; }
     
@@ -30,7 +35,7 @@ service cloud.firestore {
                data.role in ['Admin', 'Teacher', 'Mentor', 'Student'];
       }
 
-      allow create: if isAdmin() && isValidUser(incoming());
+      allow create: if (isAdmin() || (isOwner(userId) && incoming().role == 'Student')) && isValidUser(incoming());
       allow update: if (isAdmin() || (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid', 'email']))) && isValidUser(incoming());
     }
 

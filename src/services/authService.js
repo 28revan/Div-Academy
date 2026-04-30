@@ -1,3 +1,6 @@
+import { auth } from '../lib/firebase';
+import { signOut } from 'firebase/auth';
+
 const API_BASE = '/api';
 
 export const AuthService = {
@@ -27,7 +30,12 @@ export const AuthService = {
     return data;
   },
 
-  logout() {
+  async logout() {
+    try {
+      await signOut(auth);
+    } catch(e) {
+      console.error("Firebase logout error", e);
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },
