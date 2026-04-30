@@ -64,13 +64,19 @@ export default function Login({ onLogin }) {
           console.error(signupErr);
           if (signupErr.code === 'auth/email-already-in-use') {
             setError('Şifrə yanlışdır.');
+          } else if (signupErr.code === 'auth/operation-not-allowed') {
+            setError('Firebase Konsolunda Email/Password girişi aktiv edilməlidir!');
           } else {
             setError(signupErr.message || 'Giriş uğursuz oldu');
           }
         }
       } else {
         console.error(err);
-        setError(err.message || 'Giriş uğursuz oldu');
+        if (err.code === 'auth/operation-not-allowed') {
+          setError('Təhlükəsizlik üçün Firebase Konsolunda (Authentication) Email/Password girişi aktiv edilməlidir!');
+        } else {
+          setError(err.message || 'Giriş uğursuz oldu');
+        }
       }
     } finally {
       setLoading(false);
