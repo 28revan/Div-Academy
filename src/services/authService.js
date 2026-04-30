@@ -8,6 +8,13 @@ export const AuthService = {
       body: JSON.stringify({ email, password }),
     });
     
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response from server:', text);
+      throw new Error('Server JSON cavabı qaytarmadı. API marşrutu düzgün qurulmayıb və ya serverdə xəta baş verib.');
+    }
+    
     if (!response.ok) {
       const err = await response.json();
       throw new Error(err.error || 'Login failed');

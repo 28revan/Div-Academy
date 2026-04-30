@@ -17,11 +17,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3000;
 
-async function startServer() {
+export const app = express();
+
+export async function configureServer() {
   await initDB();
   await seedDB();
-
-  const app = express();
   
   // Security Middlewares
   app.use(helmet({
@@ -34,7 +34,7 @@ async function startServer() {
   app.use('/api/auth', authRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/student', studentRoutes);
-  app.use('/api', teacherRoutes); // teacherRoutes paths already include /tasks, /attendance, etc.
+  app.use('/api', teacherRoutes);
 
   // Server-side CV Generation (Senior Security Implementation)
   app.post('/api/cv/generate', async (req, res) => {
@@ -76,10 +76,15 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+}
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+// Local development or classic Node hosting
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  configureServer().then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
   });
 }
 
-startServer();
+export default app;
