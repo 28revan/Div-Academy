@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Plus, Filter, FileSpreadsheet, Edit2, Trash2, Shield, User, Briefcase, Zap, X, Save, Key } from 'lucide-react';
 import { ExcelService } from '../services/excelService';
+import { AuthService } from '../services/authService';
 import { Role } from '../constants';
 import StatusBadge from './common/StatusBadge';
 
@@ -45,7 +46,12 @@ export default function AccountsManagement() {
   const handleDelete = async (uid) => {
     if (!window.confirm('Bu hesabı silmək istədiyinizə əminsiniz?')) return;
     try {
-      await fetch(`/api/admin/users/${uid}`, { method: 'DELETE' });
+      const currentUser = AuthService.getCurrentUser();
+      await fetch(`/api/admin/users/${uid}`, { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deletedBy: currentUser?.name || 'Admin' })
+      });
       fetchUsers();
     } catch (error) {
        console.error('Delete error:', error);

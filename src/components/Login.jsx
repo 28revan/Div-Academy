@@ -62,7 +62,7 @@ export default function Login({ onLogin }) {
           await handleFirebaseLogin(userCredential);
         } catch (signupErr) {
           if (signupErr.code === 'auth/email-already-in-use') {
-            setError('Bu e-poçt artıq mövcuddur, lakin şifrə yanlışdır. Zəhmət olmasa Google ilə daxil olun və ya şifrəni yeniləyin.');
+            setError('Şifrə yanlışdır və ya bu e-poçt Google ilə qeydiyyatdan keçib. "Şifrəni unutmusunuz" klikləyərək şifrəni "revan28@!" təyin edə və ya Firebase Konsoldan hesabı silib yenidən yarada bilərsiniz.');
           } else if (signupErr.code === 'auth/operation-not-allowed') {
             setError('Firebase Konsolunda Email/Password girişi aktiv edilməlidir!');
           } else {

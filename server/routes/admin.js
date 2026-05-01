@@ -79,10 +79,23 @@ router.patch('/users/:uid', async (req, res) => {
 
 router.delete('/users/:uid', async (req, res) => {
     const { uid } = req.params;
+    const { deletedBy } = req.body;
     const data = await readDB();
     
     const user = data.users.find(u => u.uid === uid);
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Ensure trash collection exists
+    if (!data.trash) data.trash = [];
+    
+    // Add to trash
+    data.trash.push({
+      id: Date.now().toString(),
+      type: 'İstifadəçi',
+      data: user,
+      deletedBy: deletedBy || 'Admin',
+      deletedAt: new Date().toISOString()
+    });
 
     data.users = data.users.filter(u => u.uid !== uid);
     await addLog(null, 'Admin', `${user.name} (${user.role}) adlı istifadəçi silindi`);
@@ -134,6 +147,50 @@ router.patch('/groups/:id', async (req, res) => {
   data.groups[index] = { ...data.groups[index], ...updates };
   await writeDB(data);
   res.json(data.groups[index]);
+});
+
+router.get('/trash', async (req, res) => {
+  const data = await readDB();
+  res.json(data.trash || []);
+});
+
+router.delete('/trash/:id', async (req, res) => {
+  const { id } = req.params;
+  const data = await readDB();
+  
+  if (!data.trash) data.trash = [];
+  data.trash = data.trash.filter(t => t.id !== id);
+  await writeDB(data);
+  res.json({ message: 'Permanently deleted' });
+});
+
+router.post('/trash/:id/restore', async (req, res) => {
+  const { id } = req.params;
+  const data = await readDB();
+  
+  if (!data.trash) data.trash = [];
+  const itemIndex = data.trash.findIndex(t => t.id === id);
+  if (itemIndex === -1) return res.status(404).json({ error: 'Item not found in trash' });
+  
+  const item = data.trash[itemIndex];
+  
+  if (item.type === 'İstifadəçi') {
+     data.users.push(item.data);
+  } else if (item.type === 'Layihə') {
+     const ownerUid = item.data._ownerUid;
+     const userIndex = data.users.findIndex(u => u.uid === ownerUid);
+     if (userIndex !== -1) {
+       if (!data.users[userIndex].projects) data.users[userIndex].projects = [];
+       const { _ownerUid, ...projectData } = item.data;
+       data.users[userIndex].projects.push(projectData);
+     }
+  }
+  // Remove from trash
+  data.trash.splice(itemIndex, 1);
+  
+  await addLog(null, 'Admin', `${item.data.name || 'Öge'} zibil qutusundan geri qaytarıldı`);
+  await writeDB(data);
+  res.json({ message: 'Restored successfully' });
 });
 
 export default router;

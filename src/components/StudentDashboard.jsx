@@ -146,9 +146,12 @@ export default function StudentDashboard() {
   };
 
   const removeProject = async (id) => {
+    if (!window.confirm('Bu layihəni silmək istədiyinizə əminsiniz?')) return;
     try {
       const res = await fetch(`/api/student/projects/${user.uid}/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deletedBy: user.name })
       });
       if (res.ok) {
         fetchProjects();

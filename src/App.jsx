@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { LogOut, LayoutDashboard, Users, BookOpen, CheckSquare, Wallet, X, Menu, Sun, Moon, Briefcase, Zap, ShieldCheck, History } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, BookOpen, CheckSquare, Wallet, X, Menu, Sun, Moon, Briefcase, Zap, ShieldCheck, History, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthService } from './services/authService';
 import { Role } from './constants';
@@ -18,6 +18,7 @@ import StudentDashboard from './components/StudentDashboard';
 import AdminsList from './components/AdminsList';
 import AccountsManagement from './components/AccountsManagement';
 import ActivityLog from './components/ActivityLog';
+import TrashBin from './components/TrashBin';
 
 // Logo Component
 const Logo = ({ className = "" }) => (
@@ -70,6 +71,7 @@ function NavSidebar({ user, handleLogout, closeMobileMenu }) {
             <NavLink to="/admin/groups" icon={<BookOpen size={18} />} label="Qruplar" isActive={location.pathname === '/admin/groups'} onClick={closeMobileMenu} />
             <NavLink to="/admin/accounts" icon={<ShieldCheck size={18} />} label="Hesablar" isActive={location.pathname === '/admin/accounts'} onClick={closeMobileMenu} />
             <NavLink to="/admin/logs" icon={<History size={18} />} label="Aktivlik" isActive={location.pathname === '/admin/logs'} onClick={closeMobileMenu} />
+            <NavLink to="/admin/trash" icon={<Trash2 size={18} />} label="Zibil Qutusu" isActive={location.pathname === '/admin/trash'} onClick={closeMobileMenu} />
           </>
         )}
       </div>
@@ -184,6 +186,7 @@ function MainLayout({ user, handleLogout }) {
                   <Route path="/admin/team" element={<AdminsList />} />
                   <Route path="/admin/accounts" element={<AccountsManagement />} />
                   <Route path="/admin/logs" element={<ActivityLog />} />
+                  <Route path="/admin/trash" element={<TrashBin />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </motion.div>

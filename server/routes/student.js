@@ -33,11 +33,24 @@ router.post('/projects/:uid', async (req, res) => {
 
 router.delete('/projects/:uid/:projectId', async (req, res) => {
   const { uid, projectId } = req.params;
+  const { deletedBy } = req.body || {};
   const data = await readDB();
   const userIndex = data.users.findIndex(u => u.uid === uid);
   if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
   
   if (data.users[userIndex].projects) {
+    const projectToDelete = data.users[userIndex].projects.find(p => p.id === projectId);
+    if (projectToDelete) {
+      if (!data.trash) data.trash = [];
+      data.trash.push({
+        id: Date.now().toString(),
+        type: 'Layihə',
+        data: { ...projectToDelete, _ownerUid: uid },
+        deletedBy: deletedBy || data.users[userIndex].name,
+        deletedAt: new Date().toISOString()
+      });
+    }
+
     data.users[userIndex].projects = data.users[userIndex].projects.filter(p => p.id !== projectId);
     await writeDB(data);
   }

@@ -35,7 +35,7 @@ let memoryDB = null;
 export async function readDB() {
   if (db) {
     try {
-      const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance'];
+      const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance', 'trash'];
       const data = {};
       for (const colName of collections) {
         const snapshot = await db.collection(colName).get();
@@ -56,7 +56,7 @@ export async function readDB() {
     return memoryDB;
   } catch (error) {
     console.warn('Database read failed, using empty default');
-    memoryDB = { users: [], groups: [], tasks: [], submissions: [], logs: [], attendance: [] };
+    memoryDB = { users: [], groups: [], tasks: [], submissions: [], logs: [], attendance: [], trash: [] };
     return memoryDB;
   }
 }
@@ -66,7 +66,7 @@ export async function writeDB(data) {
   
   if (db) {
     try {
-      const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance'];
+      const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance', 'trash'];
       const batch = db.batch();
       for (const colName of collections) {
         if (data[colName] && Array.isArray(data[colName])) {
