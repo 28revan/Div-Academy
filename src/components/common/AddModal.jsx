@@ -6,6 +6,9 @@ import { Role, StudentStatus } from '../../constants';
 export default function AddModal({ type, isOpen, onClose, onAdd, teachers, mentors }) {
   const [formData, setFormData] = useState({});
 
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   if (!isOpen) return null;
 
   const getTitle = () => {
@@ -31,13 +34,22 @@ export default function AddModal({ type, isOpen, onClose, onAdd, teachers, mento
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onAdd(formData);
-    onClose();
-    setFormData({});
+    setLoading(true);
+    setError('');
+    try {
+      await onAdd(formData);
+      onClose();
+      setFormData({});
+    } catch (err) {
+      setError(err.message || 'Xəta baş verdi');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass = "w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-3 text-sm focus:border-brand-orange outline-none text-brand-text placeholder:text-gray-600 transition-all";
@@ -65,6 +77,12 @@ export default function AddModal({ type, isOpen, onClose, onAdd, teachers, mento
               <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">Div Academy LMS</p>
             </div>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm font-medium">
+              {error}
+            </div>
+          )}
 
           <form className="space-y-4" onSubmit={handleSubmit}>
             {type !== 'groups' ? (

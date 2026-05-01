@@ -132,6 +132,7 @@ router.post('/groups', async (req, res) => {
     return u;
   });
 
+  await addLog(null, 'Admin', `Yeni qrup yaradıldı: ${newGroup.name}`);
   await writeDB(data);
   res.status(201).json(newGroup);
 });

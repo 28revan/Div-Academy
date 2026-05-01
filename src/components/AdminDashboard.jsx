@@ -651,28 +651,31 @@ export default function AdminDashboard() {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onAdd={async (data) => {
-          try {
-            const role = activeMainTab === 'students' ? Role.Student : 
-                         activeMainTab === 'teachers' ? Role.Teacher : 
-                         activeMainTab === 'mentors' ? Role.Mentor : null;
-            
-            if (activeMainTab === 'groups') {
-                await fetch('/api/admin/groups', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ ...data, students: [] })
-                });
-            } else {
-                await fetch('/api/admin/users', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ ...data, role })
-                });
-            }
-            fetchData();
-          } catch (err) {
-            console.error(err);
+          const role = activeMainTab === 'students' ? Role.Student : 
+                       activeMainTab === 'teachers' ? Role.Teacher : 
+                       activeMainTab === 'mentors' ? Role.Mentor : null;
+          
+          let response;
+          if (activeMainTab === 'groups') {
+              response = await fetch('/api/admin/groups', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...data, students: [] })
+              });
+          } else {
+              response = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...data, role })
+              });
           }
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.message || 'Server xətası baş verdi.');
+          }
+
+          fetchData();
         }}
         teachers={users.filter(u => u.role === Role.Teacher)}
         mentors={users.filter(u => u.role === Role.Mentor)}
