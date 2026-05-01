@@ -104,7 +104,6 @@ export async function initDB() {
 }
 
 export async function addLog(user, type, description, ip = '127.0.0.1') {
-  const data = await readDB();
   const now = new Date();
   const logEntry = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -117,10 +116,29 @@ export async function addLog(user, type, description, ip = '127.0.0.1') {
     description,
     ip
   };
-  if (!data.logs) data.logs = [];
-  data.logs.push(logEntry);
-  await writeDB(data);
-  
+
+  if (db) {
+    try {
+      await db.collection('logs').doc(String(logEntry.id)).set(logEntry);
+    } catch (e) {
+      console.error('Failed to write log to Firestore:', e.message);
+    }
+  }
+
+  // Also maintain local/memory DB
+  if (!memoryDB) {
+    await readDB();
+  }
+  if (memoryDB) {
+    if (!memoryDB.logs) memoryDB.logs = [];
+    memoryDB.logs.push(logEntry);
+    if (!db) {
+      try {
+        await fs.writeFile(DATA_FILE, JSON.stringify(memoryDB, null, 2));
+      } catch (err) {}
+    }
+  }
+
   // Asynchronously clean up old logs
   cleanupOldLogs().catch(e => console.error('Log cleanup error:', e));
 
@@ -136,19 +154,13 @@ export async function cleanupOldLogs() {
   if (db) {
     try {
       const logsRef = db.collection('logs');
-      const snapshot = await logsRef.get();
-      const batch = db.batch();
-      let hasDeletes = false;
+      const snapshot = await logsRef.where('timestamp', '<', cutoffISO).get();
       
-      snapshot.docs.forEach(doc => {
-        const docData = doc.data();
-        if (docData.timestamp && docData.timestamp < cutoffISO) {
+      if (!snapshot.empty) {
+        const batch = db.batch();
+        snapshot.docs.forEach(doc => {
           batch.delete(doc.ref);
-          hasDeletes = true;
-        }
-      });
-      
-      if (hasDeletes) {
+        });
         await batch.commit();
         console.log('Old logs cleaned from Firestore');
       }
@@ -161,7 +173,7 @@ export async function cleanupOldLogs() {
   if (memoryDB && memoryDB.logs) {
     const originalLength = memoryDB.logs.length;
     memoryDB.logs = memoryDB.logs.filter(log => log.timestamp >= cutoffISO);
-    if (memoryDB.logs.length < originalLength) {
+    if (memoryDB.logs.length < originalLength && !db) {
       try {
         await fs.writeFile(DATA_FILE, JSON.stringify(memoryDB, null, 2));
       } catch (err) {
