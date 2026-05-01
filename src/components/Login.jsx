@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export default function Login({ onLogin }) {
@@ -61,9 +61,8 @@ export default function Login({ onLogin }) {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           await handleFirebaseLogin(userCredential);
         } catch (signupErr) {
-          console.error(signupErr);
           if (signupErr.code === 'auth/email-already-in-use') {
-            setError('Şifrə yanlışdır.');
+            setError('Bu e-poçt artıq mövcuddur, lakin şifrə yanlışdır. Zəhmət olmasa Google ilə daxil olun və ya şifrəni yeniləyin.');
           } else if (signupErr.code === 'auth/operation-not-allowed') {
             setError('Firebase Konsolunda Email/Password girişi aktiv edilməlidir!');
           } else {
@@ -71,7 +70,6 @@ export default function Login({ onLogin }) {
           }
         }
       } else {
-        console.error(err);
         if (err.code === 'auth/operation-not-allowed') {
           setError('Təhlükəsizlik üçün Firebase Konsolunda (Authentication) Email/Password girişi aktiv edilməlidir!');
         } else {
@@ -95,6 +93,20 @@ export default function Login({ onLogin }) {
       setError(err.message || 'Google ilə giriş uğursuz oldu');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('Zəhmət olmasa şifrəni sıfırlamaq üçün e-poçt ünvanınızı daxil edin.');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setError('Şifrəni yeniləmək üçün e-poçtunuza link göndərildi! Zəhmət olmasa yoxlayın.');
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Şifrə sıfırlama uğursuz oldu.');
     }
   };
 
@@ -141,7 +153,16 @@ export default function Login({ onLogin }) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1">Şifrə</label>
+                <div className="flex justify-between items-center ml-1 mb-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Şifrə</label>
+                  <button 
+                    type="button" 
+                    onClick={handleResetPassword}
+                    className="text-[10px] text-brand-orange hover:text-brand-orange/80 transition-colors font-medium font-mono"
+                  >
+                    Şifrəni unutmusunuz?
+                  </button>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                   <input
@@ -149,7 +170,7 @@ export default function Login({ onLogin }) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-[#1E1E21] border border-[#2C2C30] text-[#E2E2E2] rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all text-sm"
-                    placeholder="Revan28@!"
+                    placeholder="revan28@!"
                     required
                   />
                 </div>
@@ -205,7 +226,7 @@ export default function Login({ onLogin }) {
                 SECURE AUTH GATEWAY v2.0 (Firebase)
               </p>
               <p className="text-[10px] text-gray-700 font-mono mt-1">
-                Admin: revaneliyev133@gmail.com / Revan28@!
+                Admin: revaneliyev133@gmail.com / revan28@!
               </p>
             </div>
           </div>
