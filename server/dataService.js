@@ -120,6 +120,54 @@ export async function addLog(user, type, description, ip = '127.0.0.1') {
   if (!data.logs) data.logs = [];
   data.logs.push(logEntry);
   await writeDB(data);
+  
+  // Asynchronously clean up old logs
+  cleanupOldLogs().catch(e => console.error('Log cleanup error:', e));
+
   return logEntry;
+}
+
+export async function cleanupOldLogs() {
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const cutoffDate = new Date(Date.now() - THIRTY_DAYS_MS);
+  const cutoffISO = cutoffDate.toISOString();
+
+  // If using Firestore, delete old logs there
+  if (db) {
+    try {
+      const logsRef = db.collection('logs');
+      const snapshot = await logsRef.get();
+      const batch = db.batch();
+      let hasDeletes = false;
+      
+      snapshot.docs.forEach(doc => {
+        const docData = doc.data();
+        if (docData.timestamp && docData.timestamp < cutoffISO) {
+          batch.delete(doc.ref);
+          hasDeletes = true;
+        }
+      });
+      
+      if (hasDeletes) {
+        await batch.commit();
+        console.log('Old logs cleaned from Firestore');
+      }
+    } catch (e) {
+      console.error('Error cleaning up firestore logs:', e.message);
+    }
+  }
+
+  // Handle local memory / file DB
+  if (memoryDB && memoryDB.logs) {
+    const originalLength = memoryDB.logs.length;
+    memoryDB.logs = memoryDB.logs.filter(log => log.timestamp >= cutoffISO);
+    if (memoryDB.logs.length < originalLength) {
+      try {
+        await fs.writeFile(DATA_FILE, JSON.stringify(memoryDB, null, 2));
+      } catch (err) {
+        // Expected on vercel
+      }
+    }
+  }
 }
 

