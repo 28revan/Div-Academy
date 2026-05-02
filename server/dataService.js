@@ -1,36 +1,32 @@
-import { initializeApp, cert, getApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import fs from 'fs/promises';
 import path from 'path';
 
+// Load config from root
+import firebaseConfig from '../firebase-applet-config.json' with { type: "json" };
+
 let db = null;
-
-try {
-  // Try initializing Firebase Admin
-  let adminApp;
-  try { adminApp = getApp(); } catch (e) {}
-  
-  if (!adminApp) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      adminApp = initializeApp({
-        credential: cert(serviceAccount)
-      });
-      console.log('Firebase Admin initialized from FIREBASE_SERVICE_ACCOUNT');
-    } else {
-      console.warn('FIREBASE_SERVICE_ACCOUNT yoxdur. Vercel-də işləmək üçün bu environment variable əlavə edilməlidir. Müvəqqəti yaddaşdan istifadə olunur.');
-    }
-  }
-  
-  if (adminApp) {
-    db = getFirestore(adminApp);
-  }
-} catch (error) {
-  console.error('Firebase Admin başlatmaq mümkün olmadı:', error);
-}
-
-const DATA_FILE = path.resolve(process.cwd(), 'db.json');
+let authApp = null;
 let memoryDB = null;
+const DATA_FILE = path.resolve(process.cwd(), 'db.json');
+
+export async function initDB() {
+  if (db) return;
+  
+  try {
+    const app = initializeApp(firebaseConfig);
+    authApp = getAuth(app);
+    db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+    // Login as admin so the backend has permission to write and bypass some rules
+    await signInWithEmailAndPassword(authApp, 'revaneliyev133@gmail.com', 'revan28@!');
+    console.log('Firebase backend initialized and authenticated via Client SDK.');
+  } catch (error) {
+    console.error('Firebase Client DB initialization failed:', error);
+  }
+}
 
 export async function readDB() {
   if (memoryDB) return memoryDB;
@@ -40,29 +36,22 @@ export async function readDB() {
       const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance', 'trash'];
       const data = {};
       for (const colName of collections) {
-        const snapshot = await db.collection(colName).get();
-        data[colName] = snapshot.docs.map(doc => {
-          const itemData = doc.data();
-          const id = doc.id;
-          return { ...itemData, id, uid: id };
-        });
+        const querySnapshot = await getDocs(collection(db, colName));
+        data[colName] = querySnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id }));
       }
       memoryDB = data;
       return data;
     } catch (error) {
-      console.error('Firestore Admin read failed:', error.message);
+      console.error('Firestore client read failed:', error.message);
     }
   }
 
   // Fallback to memory / local JSON
-  if (memoryDB) return memoryDB;
-  
   try {
     const content = await fs.readFile(DATA_FILE, 'utf-8');
     memoryDB = JSON.parse(content);
     return memoryDB;
   } catch (error) {
-    console.warn('Database read failed, using empty default');
     memoryDB = { users: [], groups: [], tasks: [], submissions: [], logs: [], attendance: [], trash: [] };
     return memoryDB;
   }
@@ -73,21 +62,18 @@ export async function writeDB(data) {
   
   if (db) {
     try {
-      // In a real app, we should only write changes. 
-      // But to keep compatibility with the existing route pattern:
       const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance', 'trash'];
-      
       for (const colName of collections) {
         if (data[colName] && Array.isArray(data[colName])) {
-           // Break into chunks of 450 to stay under Firestore batch limit (500)
            const items = data[colName];
            for (let i = 0; i < items.length; i += 450) {
              const chunk = items.slice(i, i + 450);
-             const batch = db.batch();
+             const batch = writeBatch(db);
              for (const item of chunk) {
-                const id = String(item.uid || item.id || db.collection(colName).doc().id);
+                const id = String(item.uid || item.id || Date.now().toString());
                 const { id: _, uid: __, ...rest } = item;
-                batch.set(db.collection(colName).doc(id), { ...rest, id, uid: id }, { merge: true });
+                const docRef = doc(db, colName, id);
+                batch.set(docRef, { ...rest, id, uid: id }, { merge: true });
              }
              await batch.commit();
            }
@@ -95,48 +81,35 @@ export async function writeDB(data) {
       }
       return;
     } catch (error) {
-      console.error('Firestore Admin write failed:', error.message);
+      console.error('Firestore batch write failed:', error.message);
     }
   }
 
   try {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-  } catch (error) {
-    // Expected error on Vercel read-only filesystem
-  }
+  } catch (error) {}
 }
 
-export async function initDB() {
-  if (db) {
-     console.log('Using Firebase Firestore as backend');
-     return;
-  }
-  try {
-    await fs.access(DATA_FILE);
-  } catch {
-    await writeDB({ users: [], groups: [], tasks: [], submissions: [], logs: [], attendance: [], trash: [] });
-  }
-}
-
-// Granular Operations
 export async function getCollection(colName) {
+  if (!db) await initDB();
   if (db) {
-    const snapshot = await db.collection(colName).get();
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, uid: doc.id }));
+    const querySnapshot = await getDocs(collection(db, colName));
+    return querySnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id }));
   }
   const data = await readDB();
   return data[colName] || [];
 }
 
 export async function findItem(colName, predicate) {
-  const collection = await getCollection(colName);
-  return collection.find(predicate);
+  const coll = await getCollection(colName);
+  return coll.find(predicate);
 }
 
 export async function setItem(colName, id, itemData) {
+  if (!db) await initDB();
   if (db) {
-    const docRef = db.collection(colName).doc(String(id));
-    await docRef.set({ ...itemData, id, uid: id }, { merge: true });
+    const docRef = doc(db, colName, String(id));
+    await setDoc(docRef, { ...itemData, id, uid: id }, { merge: true });
     return;
   }
   const data = await readDB();
@@ -151,8 +124,10 @@ export async function setItem(colName, id, itemData) {
 }
 
 export async function deleteItem(colName, id) {
+  if (!db) await initDB();
   if (db) {
-    await db.collection(colName).doc(String(id)).delete();
+    const docRef = doc(db, colName, String(id));
+    await deleteDoc(docRef);
     return;
   }
   const data = await readDB();
@@ -163,6 +138,8 @@ export async function deleteItem(colName, id) {
 }
 
 export async function addLog(user, type, description, ip = '127.0.0.1') {
+  if (!db) await initDB();
+  
   const now = new Date();
   const logEntry = {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
@@ -178,16 +155,14 @@ export async function addLog(user, type, description, ip = '127.0.0.1') {
 
   if (db) {
     try {
-      await db.collection('logs').doc(String(logEntry.id)).set(logEntry);
+      const docRef = doc(db, 'logs', String(logEntry.id));
+      await setDoc(docRef, logEntry);
     } catch (e) {
       console.error('Failed to write log to Firestore:', e.message);
     }
   }
 
-  // Also maintain local/memory DB
-  if (!memoryDB) {
-    await readDB();
-  }
+  if (!memoryDB) await readDB();
   if (memoryDB) {
     if (!memoryDB.logs) memoryDB.logs = [];
     memoryDB.logs.push(logEntry);
@@ -198,47 +173,29 @@ export async function addLog(user, type, description, ip = '127.0.0.1') {
     }
   }
 
-  // Asynchronously clean up old logs
   cleanupOldLogs().catch(e => console.error('Log cleanup error:', e));
-
   return logEntry;
 }
 
 export async function cleanupOldLogs() {
+  if (!db) return;
   const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
   const cutoffDate = new Date(Date.now() - THIRTY_DAYS_MS);
   const cutoffISO = cutoffDate.toISOString();
 
-  // If using Firestore, delete old logs there
-  if (db) {
-    try {
-      const logsRef = db.collection('logs');
-      const snapshot = await logsRef.where('timestamp', '<', cutoffISO).get();
-      
-      if (!snapshot.empty) {
-        const batch = db.batch();
-        snapshot.docs.forEach(doc => {
-          batch.delete(doc.ref);
-        });
-        await batch.commit();
-        console.log('Old logs cleaned from Firestore');
-      }
-    } catch (e) {
-      console.error('Error cleaning up firestore logs:', e.message);
+  try {
+    const q = query(collection(db, 'logs'), where('timestamp', '<', cutoffISO));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(d => {
+        batch.delete(d.ref);
+      });
+      await batch.commit();
     }
-  }
-
-  // Handle local memory / file DB
-  if (memoryDB && memoryDB.logs) {
-    const originalLength = memoryDB.logs.length;
-    memoryDB.logs = memoryDB.logs.filter(log => log.timestamp >= cutoffISO);
-    if (memoryDB.logs.length < originalLength && !db) {
-      try {
-        await fs.writeFile(DATA_FILE, JSON.stringify(memoryDB, null, 2));
-      } catch (err) {
-        // Expected on vercel
-      }
-    }
+  } catch (e) {
+    console.error('Error cleaning up firestore logs:', e.message);
   }
 }
 

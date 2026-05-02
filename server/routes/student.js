@@ -14,11 +14,10 @@ router.get('/projects/:uid', async (req, res) => {
 router.post('/projects/:uid', async (req, res) => {
   const { uid } = req.params;
   const project = req.body;
-  const data = await readDB();
-  const userIndex = data.users.findIndex(u => u.uid === uid);
-  if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+  const user = await findItem('users', u => u.uid === uid);
+  if (!user) return res.status(404).json({ error: 'User not found' });
   
-  if (!data.users[userIndex].projects) data.users[userIndex].projects = [];
+  if (!user.projects) user.projects = [];
   
   const newProject = {
     id: Date.now().toString(),
@@ -26,33 +25,31 @@ router.post('/projects/:uid', async (req, res) => {
     createdAt: new Date().toISOString()
   };
   
-  data.users[userIndex].projects.push(newProject);
-  await setItem('users', uid, data.users[userIndex]);
+  user.projects.push(newProject);
+  await setItem('users', uid, user);
   res.status(201).json(newProject);
 });
 
 router.delete('/projects/:uid/:projectId', async (req, res) => {
   const { uid, projectId } = req.params;
   const { deletedBy } = req.body || {};
-  const data = await readDB();
-  const userIndex = data.users.findIndex(u => u.uid === uid);
-  if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+  const user = await findItem('users', u => u.uid === uid);
+  if (!user) return res.status(404).json({ error: 'User not found' });
   
-  if (data.users[userIndex].projects) {
-    const projectToDelete = data.users[userIndex].projects.find(p => p.id === projectId);
+  if (user.projects) {
+    const projectToDelete = user.projects.find(p => p.id === projectId);
     if (projectToDelete) {
       const trashItem = {
         id: Date.now().toString(),
         type: 'Layihə',
         data: { ...projectToDelete, _ownerUid: uid },
-        deletedBy: deletedBy || data.users[userIndex].name,
+        deletedBy: deletedBy || user.name,
         deletedAt: new Date().toISOString()
       };
       await setItem('trash', trashItem.id, trashItem);
     }
-
-    data.users[userIndex].projects = data.users[userIndex].projects.filter(p => p.id !== projectId);
-    await setItem('users', uid, data.users[userIndex]);
+    user.projects = user.projects.filter(p => p.id !== projectId);
+    await setItem('users', uid, user);
   }
   res.json({ success: true });
 });
@@ -60,9 +57,9 @@ router.delete('/projects/:uid/:projectId', async (req, res) => {
 router.post('/submissions/:uid/:taskId', async (req, res) => {
   const { uid, taskId } = req.params;
   const { githubLink } = req.body;
-  const data = await readDB();
   
-  if (!data.submissions) data.submissions = [];
+  const student = await findItem('users', u => u.uid === uid);
+  if (!student) return res.status(404).json({ error: 'Student not found' });
   
   const submission = {
     id: Date.now().toString(),
@@ -74,9 +71,6 @@ router.post('/submissions/:uid/:taskId', async (req, res) => {
     submittedAt: new Date().toISOString()
   };
   
-  data.submissions.push(submission);
-  
-  const student = data.users.find(u => u.uid === uid);
   await addLog(student, 'Task', 'Yeni tapşırıq həlli yüklədi');
   
   await setItem('submissions', submission.id, submission);
@@ -86,10 +80,9 @@ router.post('/submissions/:uid/:taskId', async (req, res) => {
 router.put('/profile/:uid', async (req, res) => {
   const { uid } = req.params;
   const updates = req.body;
-  const data = await readDB();
-  const userIndex = data.users.findIndex(u => u.uid === uid);
+  const user = await findItem('users', u => u.uid === uid);
   
-  if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+  if (!user) return res.status(404).json({ error: 'User not found' });
   
   // Update allowed fields
   const allowedFields = [
@@ -100,12 +93,12 @@ router.put('/profile/:uid', async (req, res) => {
   
   allowedFields.forEach(field => {
     if (updates[field] !== undefined) {
-      data.users[userIndex][field] = updates[field];
+      user[field] = updates[field];
     }
   });
 
-  await setItem('users', uid, data.users[userIndex]);
-  res.json(data.users[userIndex]);
+  await setItem('users', uid, user);
+  res.json(user);
 });
 
 router.get('/logs/:uid', async (req, res) => {

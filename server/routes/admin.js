@@ -26,9 +26,9 @@ router.post('/users', [
   }
 
   const { name, email, password, role, fin, phone, status, specialty, university } = req.body;
-  const data = await readDB();
+  const users = await getCollection('users');
   
-  if (data.users.find((u) => u.email === email)) {
+  if (users.find((u) => u.email === email)) {
     return res.status(400).json({ error: 'User with this email already exists' });
   }
 
@@ -59,9 +59,8 @@ router.post('/users', [
 router.patch('/users/:uid', async (req, res) => {
   const { uid } = req.params;
   const { newPassword, ...updates } = req.body;
-  const data = await readDB();
+  const user = await findItem('users', u => u.uid === uid);
   
-  const user = data.users.find(u => u.uid === uid);
   if (!user) return res.status(404).json({ error: 'User not found' });
   
   if (newPassword) {
@@ -78,9 +77,7 @@ router.patch('/users/:uid', async (req, res) => {
 router.delete('/users/:uid', async (req, res) => {
     const { uid } = req.params;
     const { deletedBy } = req.body;
-    const data = await readDB();
-    
-    const user = data.users.find(u => u.uid === uid);
+    const user = await findItem('users', u => u.uid === uid);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const trashItem = {
@@ -104,7 +101,6 @@ router.get('/groups', async (req, res) => {
 
 router.post('/groups', async (req, res) => {
   const { name, teacherId, mentorId, students } = req.body;
-  const data = await readDB();
   
   const newGroup = {
     id: 'g-' + Date.now().toString(),
@@ -123,7 +119,7 @@ router.post('/groups', async (req, res) => {
   
   // Update students group ID
   for (const studentId of students) {
-    const student = data.users.find(u => u.uid === studentId);
+    const student = await findItem('users', u => u.uid === studentId);
     if (student) {
       await setItem('users', studentId, { ...student, groupId: newGroup.id });
     }
