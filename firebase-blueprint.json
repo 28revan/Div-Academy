@@ -87,6 +87,30 @@
         "description": { "type": "string" },
         "ip": { "type": "string" }
       }
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Student attendance record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "groupId": { "type": "string" },
+        "date": { "type": "string" },
+        "records": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Trash": {
+      "title": "Trash",
+      "description": "Deleted items for recovery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "data": { "type": "object" },
+        "deletedBy": { "type": "string" },
+        "deletedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -109,6 +133,14 @@
     "/logs/{logId}": {
       "schema": "Log",
       "description": "Audit trails"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Attendance history"
+    },
+    "/trash/{trashId}": {
+      "schema": "Trash",
+      "description": "Recycle bin"
     }
   }
 }

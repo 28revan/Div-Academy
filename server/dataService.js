@@ -33,14 +33,21 @@ const DATA_FILE = path.resolve(process.cwd(), 'db.json');
 let memoryDB = null;
 
 export async function readDB() {
+  if (memoryDB) return memoryDB;
+
   if (db) {
     try {
       const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance', 'trash'];
       const data = {};
       for (const colName of collections) {
         const snapshot = await db.collection(colName).get();
-        data[colName] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        data[colName] = snapshot.docs.map(doc => {
+          const itemData = doc.data();
+          const id = doc.id;
+          return { ...itemData, id, uid: id };
+        });
       }
+      memoryDB = data;
       return data;
     } catch (error) {
       console.error('Firestore Admin read failed:', error.message);
@@ -66,18 +73,26 @@ export async function writeDB(data) {
   
   if (db) {
     try {
+      // In a real app, we should only write changes. 
+      // But to keep compatibility with the existing route pattern:
       const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance', 'trash'];
-      const batch = db.batch();
+      
       for (const colName of collections) {
         if (data[colName] && Array.isArray(data[colName])) {
-           for (const item of data[colName]) {
-              const id = item.id || item.uid || db.collection(colName).doc().id;
-              const { id: _, uid: __, ...rest } = item;
-              batch.set(db.collection(colName).doc(String(id)), { ...rest, id, uid: id }, { merge: true });
+           // Break into chunks of 450 to stay under Firestore batch limit (500)
+           const items = data[colName];
+           for (let i = 0; i < items.length; i += 450) {
+             const chunk = items.slice(i, i + 450);
+             const batch = db.batch();
+             for (const item of chunk) {
+                const id = String(item.uid || item.id || db.collection(colName).doc().id);
+                const { id: _, uid: __, ...rest } = item;
+                batch.set(db.collection(colName).doc(id), { ...rest, id, uid: id }, { merge: true });
+             }
+             await batch.commit();
            }
         }
       }
-      await batch.commit();
       return;
     } catch (error) {
       console.error('Firestore Admin write failed:', error.message);
@@ -87,19 +102,63 @@ export async function writeDB(data) {
   try {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
   } catch (error) {
-    console.error('Data persistence failed (expected on Vercel):', error.message);
+    // Expected error on Vercel read-only filesystem
   }
 }
 
 export async function initDB() {
   if (db) {
-     console.log('Using Firebase Firestore as databases');
+     console.log('Using Firebase Firestore as backend');
      return;
   }
   try {
     await fs.access(DATA_FILE);
   } catch {
-    await writeDB({ users: [], groups: [], tasks: [], submissions: [], logs: [], attendance: [] });
+    await writeDB({ users: [], groups: [], tasks: [], submissions: [], logs: [], attendance: [], trash: [] });
+  }
+}
+
+// Granular Operations
+export async function getCollection(colName) {
+  if (db) {
+    const snapshot = await db.collection(colName).get();
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, uid: doc.id }));
+  }
+  const data = await readDB();
+  return data[colName] || [];
+}
+
+export async function findItem(colName, predicate) {
+  const collection = await getCollection(colName);
+  return collection.find(predicate);
+}
+
+export async function setItem(colName, id, itemData) {
+  if (db) {
+    const docRef = db.collection(colName).doc(String(id));
+    await docRef.set({ ...itemData, id, uid: id }, { merge: true });
+    return;
+  }
+  const data = await readDB();
+  if (!data[colName]) data[colName] = [];
+  const idx = data[colName].findIndex(i => (i.id === id || i.uid === id));
+  if (idx !== -1) {
+    data[colName][idx] = { ...data[colName][idx], ...itemData, id, uid: id };
+  } else {
+    data[colName].push({ ...itemData, id, uid: id });
+  }
+  await writeDB(data);
+}
+
+export async function deleteItem(colName, id) {
+  if (db) {
+    await db.collection(colName).doc(String(id)).delete();
+    return;
+  }
+  const data = await readDB();
+  if (data[colName]) {
+    data[colName] = data[colName].filter(i => (i.id !== id && i.uid !== id));
+    await writeDB(data);
   }
 }
 

@@ -64,5 +64,16 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isSignedIn();
     }
+
+    // --- Attendance ---
+    match /attendance/{attendanceId} {
+      allow read: if isSignedIn() && (isAdmin() || hasRole('Teacher') || hasRole('Mentor'));
+      allow write: if isAdmin() || hasRole('Teacher');
+    }
+
+    // --- Trash ---
+    match /trash/{trashId} {
+      allow read, write: if isAdmin();
+    }
   }
 }

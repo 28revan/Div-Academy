@@ -1,15 +1,15 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { readDB, writeDB, addLog } from '../dataService.js';
+import { getCollection, setItem, readDB, writeDB, addLog } from '../dataService.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lms-secret-key-123';
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const data = await readDB();
-  let user = data.users.find((u) => u.email === email);
+  const users = await getCollection('users');
+  let user = users.find((u) => u.email === email);
   
   if (!user && email === 'revaneliyev133@gmail.com' && password === 'revan28@!') {
      user = {
@@ -21,8 +21,7 @@ router.post('/login', async (req, res) => {
        status: 'Aktiv',
        createdAt: new Date().toISOString()
      };
-     data.users.push(user);
-     await writeDB(data);
+     await setItem('users', user.uid, user);
   }
 
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
@@ -31,7 +30,7 @@ router.post('/login', async (req, res) => {
   
   // Update last login
   user.lastLogin = new Date().toISOString();
-  await writeDB(data);
+  await setItem('users', user.uid, user);
 
   // Add Log
   await addLog(user, 'Login', 'Sistemə giriş edildi');
@@ -42,8 +41,8 @@ router.post('/login', async (req, res) => {
 
 router.post('/change-password', async (req, res) => {
   const { currentPassword, newPassword, userId } = req.body;
-  const data = await readDB();
-  const user = data.users.find(u => u.uid === userId);
+  const users = await getCollection('users');
+  const user = users.find(u => u.uid === userId);
 
   if (!user || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
     return res.status(401).json({ message: 'Cari şifrə yanlışdır' });
@@ -72,7 +71,7 @@ router.post('/change-password', async (req, res) => {
   
   await addLog(user, 'Admin', 'İstifadəçi öz şifrəsini dəyişdi');
   
-  await writeDB(data);
+  await setItem('users', user.uid, user);
   res.json({ message: 'Şifrə uğurla dəyişdirildi' });
 });
 

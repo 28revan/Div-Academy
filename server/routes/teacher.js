@@ -1,12 +1,12 @@
 import express from 'express';
-import { readDB, writeDB, addLog } from '../dataService.js';
+import { getCollection, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
 
 const router = express.Router();
 
 router.get('/tasks/:groupId', async (req, res) => {
   const { groupId } = req.params;
-  const data = await readDB();
-  const group = data.groups.find(g => g.id === groupId);
+  const groups = await getCollection('groups');
+  const group = groups.find(g => g.id === groupId);
   if (!group) return res.status(404).json({ error: 'Group not found' });
   res.json(group.tasks || []);
 });
@@ -33,7 +33,7 @@ router.post('/tasks/:groupId', async (req, res) => {
   const teacher = data.users.find(u => u.uid === teacherId);
   await addLog(teacher, 'Assignment', `${group.name} qrupuna yeni tapşırıq verildi: ${task.title}`);
   
-  await writeDB(data);
+  await setItem('groups', groupId, group);
   res.status(201).json(newTask);
 });
 
@@ -48,7 +48,7 @@ router.patch('/tasks/:groupId/:taskId', async (req, res) => {
   if (taskIndex === -1) return res.status(404).json({ error: 'Task not found' });
   
   data.groups[groupIndex].tasks[taskIndex] = { ...data.groups[groupIndex].tasks[taskIndex], ...updates };
-  await writeDB(data);
+  await setItem('groups', groupId, data.groups[groupIndex]);
   res.json(data.groups[groupIndex].tasks[taskIndex]);
 });
 
@@ -75,12 +75,12 @@ router.post('/attendance/:groupId', async (req, res) => {
   };
   
   data.attendance.push(newLog);
+  await setItem('attendance', newLog.id, newLog);
 
   // Update student overall attendance
-  records.forEach(record => {
-    const userIndex = data.users.findIndex(u => u.uid === record.studentId);
-    if (userIndex !== -1) {
-      const user = data.users[userIndex];
+  for (const record of records) {
+    const user = data.users.find(u => u.uid === record.studentId);
+    if (user) {
       if (!user.attendedLessons) user.attendedLessons = 0;
       if (!user.totalLessons) user.totalLessons = 0;
       
@@ -89,10 +89,10 @@ router.post('/attendance/:groupId', async (req, res) => {
         user.attendedLessons += 1;
       }
       user.attendance = Math.round((user.attendedLessons / user.totalLessons) * 100);
+      await setItem('users', user.uid, user);
     }
-  });
+  }
 
-  await writeDB(data);
   res.status(201).json(newLog);
 });
 
@@ -115,7 +115,7 @@ router.post('/feedback/:studentId', async (req, res) => {
   };
   
   data.users[userIndex].feedbacks.push(newFeedback);
-  await writeDB(data);
+  await setItem('users', studentId, data.users[userIndex]);
   res.status(201).json(newFeedback);
 });
 
@@ -143,7 +143,7 @@ router.patch('/submissions/:submissionId', async (req, res) => {
     gradedAt: new Date().toISOString() 
   };
   
-  await writeDB(data);
+  await setItem('submissions', submissionId, data.submissions[subIndex]);
   res.json(data.submissions[subIndex]);
 });
 

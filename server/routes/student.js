@@ -1,12 +1,12 @@
 import express from 'express';
-import { readDB, writeDB, addLog } from '../dataService.js';
+import { getCollection, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
 
 const router = express.Router();
 
 router.get('/projects/:uid', async (req, res) => {
   const { uid } = req.params;
-  const data = await readDB();
-  const user = data.users.find(u => u.uid === uid);
+  const users = await getCollection('users');
+  const user = users.find(u => u.uid === uid);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user.projects || []);
 });
@@ -27,7 +27,7 @@ router.post('/projects/:uid', async (req, res) => {
   };
   
   data.users[userIndex].projects.push(newProject);
-  await writeDB(data);
+  await setItem('users', uid, data.users[userIndex]);
   res.status(201).json(newProject);
 });
 
@@ -41,18 +41,18 @@ router.delete('/projects/:uid/:projectId', async (req, res) => {
   if (data.users[userIndex].projects) {
     const projectToDelete = data.users[userIndex].projects.find(p => p.id === projectId);
     if (projectToDelete) {
-      if (!data.trash) data.trash = [];
-      data.trash.push({
+      const trashItem = {
         id: Date.now().toString(),
         type: 'Layihə',
         data: { ...projectToDelete, _ownerUid: uid },
         deletedBy: deletedBy || data.users[userIndex].name,
         deletedAt: new Date().toISOString()
-      });
+      };
+      await setItem('trash', trashItem.id, trashItem);
     }
 
     data.users[userIndex].projects = data.users[userIndex].projects.filter(p => p.id !== projectId);
-    await writeDB(data);
+    await setItem('users', uid, data.users[userIndex]);
   }
   res.json({ success: true });
 });
@@ -79,7 +79,7 @@ router.post('/submissions/:uid/:taskId', async (req, res) => {
   const student = data.users.find(u => u.uid === uid);
   await addLog(student, 'Task', 'Yeni tapşırıq həlli yüklədi');
   
-  await writeDB(data);
+  await setItem('submissions', submission.id, submission);
   res.status(201).json(submission);
 });
 
@@ -104,14 +104,14 @@ router.put('/profile/:uid', async (req, res) => {
     }
   });
 
-  await writeDB(data);
+  await setItem('users', uid, data.users[userIndex]);
   res.json(data.users[userIndex]);
 });
 
 router.get('/logs/:uid', async (req, res) => {
   const { uid } = req.params;
-  const data = await readDB();
-  const userLogs = (data.logs || []).filter(log => log.uid === uid);
+  const logs = await getCollection('logs');
+  const userLogs = logs.filter(log => log.uid === uid);
   res.json(userLogs);
 });
 

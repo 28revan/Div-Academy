@@ -1,18 +1,18 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
-import { readDB, writeDB, addLog } from '../dataService.js';
+import { getCollection, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
 
 const router = express.Router();
 
 router.get('/users', async (req, res) => {
-  const data = await readDB();
-  res.json(data.users);
+  const users = await getCollection('users');
+  res.json(users);
 });
 
 router.get('/logs', async (req, res) => {
-  const data = await readDB();
-  res.json(data.logs || []);
+  const logs = await getCollection('logs');
+  res.json(logs);
 });
 
 router.post('/users', [
@@ -52,7 +52,7 @@ router.post('/users', [
   
   data.users.push(newUser);
   await addLog(null, 'Admin', `Yeni istifadəçi əlavə edildi: ${newUser.name} (${newUser.role})`);
-  await writeDB(data);
+  await setItem('users', newUser.uid, newUser);
   res.status(201).json({ uid: newUser.uid, role: newUser.role, name: newUser.name });
 });
 
@@ -61,20 +61,18 @@ router.patch('/users/:uid', async (req, res) => {
   const { newPassword, ...updates } = req.body;
   const data = await readDB();
   
-  const index = data.users.findIndex(u => u.uid === uid);
-  if (index === -1) return res.status(404).json({ error: 'User not found' });
-  
-  let user = data.users[index];
+  const user = data.users.find(u => u.uid === uid);
+  if (!user) return res.status(404).json({ error: 'User not found' });
   
   if (newPassword) {
     user.passwordHash = await bcrypt.hash(newPassword, 10);
     await addLog(null, 'Admin', `${user.name} adlı istifadəçinin şifrəsi yeniləndi`);
   }
 
-  data.users[index] = { ...user, ...updates };
+  const updatedUser = { ...user, ...updates };
   await addLog(null, 'Admin', `${user.name} adlı istifadəçi məlumatları yeniləndi`);
-  await writeDB(data);
-  res.json(data.users[index]);
+  await setItem('users', uid, updatedUser);
+  res.json(updatedUser);
 });
 
 router.delete('/users/:uid', async (req, res) => {
@@ -85,27 +83,23 @@ router.delete('/users/:uid', async (req, res) => {
     const user = data.users.find(u => u.uid === uid);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Ensure trash collection exists
-    if (!data.trash) data.trash = [];
-    
-    // Add to trash
-    data.trash.push({
+    const trashItem = {
       id: Date.now().toString(),
       type: 'İstifadəçi',
       data: user,
       deletedBy: deletedBy || 'Admin',
       deletedAt: new Date().toISOString()
-    });
-
-    data.users = data.users.filter(u => u.uid !== uid);
+    };
+    
+    await setItem('trash', trashItem.id, trashItem);
+    await deleteItem('users', uid);
     await addLog(null, 'Admin', `${user.name} (${user.role}) adlı istifadəçi silindi`);
-    await writeDB(data);
     res.json({ message: 'User deleted' });
 });
 
 router.get('/groups', async (req, res) => {
-  const data = await readDB();
-  res.json(data.groups);
+  const groups = await getCollection('groups');
+  res.json(groups);
 });
 
 router.post('/groups', async (req, res) => {
@@ -125,72 +119,68 @@ router.post('/groups', async (req, res) => {
     schedule: { days: ['B.e.', 'C.a.'], time: '19:00 - 21:00' }
   };
 
-  data.groups.push(newGroup);
+  await setItem('groups', newGroup.id, newGroup);
   
-  data.users = data.users.map(u => {
-    if (students.includes(u.uid)) return { ...u, groupId: newGroup.id };
-    return u;
-  });
+  // Update students group ID
+  for (const studentId of students) {
+    const student = data.users.find(u => u.uid === studentId);
+    if (student) {
+      await setItem('users', studentId, { ...student, groupId: newGroup.id });
+    }
+  }
 
   await addLog(null, 'Admin', `Yeni qrup yaradıldı: ${newGroup.name}`);
-  await writeDB(data);
   res.status(201).json(newGroup);
 });
 
 router.patch('/groups/:id', async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
-  const data = await readDB();
+  const groups = await getCollection('groups');
   
-  const index = data.groups.findIndex(g => g.id === id);
-  if (index === -1) return res.status(404).json({ error: 'Group not found' });
+  const group = groups.find(g => g.id === id);
+  if (!group) return res.status(404).json({ error: 'Group not found' });
   
-  data.groups[index] = { ...data.groups[index], ...updates };
-  await writeDB(data);
-  res.json(data.groups[index]);
+  const updatedGroup = { ...group, ...updates };
+  await setItem('groups', id, updatedGroup);
+  res.json(updatedGroup);
 });
 
 router.get('/trash', async (req, res) => {
-  const data = await readDB();
-  res.json(data.trash || []);
+  const trash = await getCollection('trash');
+  res.json(trash);
 });
 
 router.delete('/trash/:id', async (req, res) => {
   const { id } = req.params;
-  const data = await readDB();
-  
-  if (!data.trash) data.trash = [];
-  data.trash = data.trash.filter(t => t.id !== id);
-  await writeDB(data);
+  await deleteItem('trash', id);
   res.json({ message: 'Permanently deleted' });
 });
 
 router.post('/trash/:id/restore', async (req, res) => {
   const { id } = req.params;
-  const data = await readDB();
+  const trash = await getCollection('trash');
+  const users = await getCollection('users');
   
-  if (!data.trash) data.trash = [];
-  const itemIndex = data.trash.findIndex(t => t.id === id);
-  if (itemIndex === -1) return res.status(404).json({ error: 'Item not found in trash' });
-  
-  const item = data.trash[itemIndex];
+  const item = trash.find(t => t.id === id);
+  if (!item) return res.status(404).json({ error: 'Item not found in trash' });
   
   if (item.type === 'İstifadəçi') {
-     data.users.push(item.data);
+     await setItem('users', item.data.uid, item.data);
   } else if (item.type === 'Layihə') {
      const ownerUid = item.data._ownerUid;
-     const userIndex = data.users.findIndex(u => u.uid === ownerUid);
-     if (userIndex !== -1) {
-       if (!data.users[userIndex].projects) data.users[userIndex].projects = [];
+     const user = users.find(u => u.uid === ownerUid);
+     if (user) {
+       if (!user.projects) user.projects = [];
        const { _ownerUid, ...projectData } = item.data;
-       data.users[userIndex].projects.push(projectData);
+       user.projects.push(projectData);
+       await setItem('users', ownerUid, user);
      }
   }
-  // Remove from trash
-  data.trash.splice(itemIndex, 1);
+  
+  await deleteItem('trash', id);
   
   await addLog(null, 'Admin', `${item.data.name || 'Öge'} zibil qutusundan geri qaytarıldı`);
-  await writeDB(data);
   res.json({ message: 'Restored successfully' });
 });
 
