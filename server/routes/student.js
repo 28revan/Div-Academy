@@ -1,7 +1,21 @@
 import express from 'express';
 import { getCollection, findItem, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
+import { generateCVBuffer } from '../cvService.js';
 
 const router = express.Router();
+
+router.post('/cv/generate', async (req, res) => {
+  try {
+    const { cvData, user, projects } = req.body;
+    const buffer = await generateCVBuffer(cvData, user, projects);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename=${user?.name || 'student'}_CV.docx`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('CV Generation Error:', err);
+    res.status(500).json({ error: 'Failed to generate CV' });
+  }
+});
 
 router.get('/projects/:uid', async (req, res) => {
   const { uid } = req.params;

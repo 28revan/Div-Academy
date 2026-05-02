@@ -15,6 +15,7 @@ export default function TrashBin() {
     try {
       setLoading(true);
       const res = await fetch('/api/admin/trash');
+      if (!res.ok) throw new Error('API Xətası');
       const data = await res.json();
       setTrashItems(data);
     } catch (error) {
@@ -27,20 +28,30 @@ export default function TrashBin() {
   const handleRestore = async (id) => {
     if (!window.confirm('Bu ödənişi/istifadəçini geri qaytarmaq istədiyinizə əminsiniz?')) return;
     try {
-      await fetch(`/api/admin/trash/${id}/restore`, { method: 'POST' });
+      const res = await fetch(`/api/admin/trash/${id}/restore`, { method: 'POST' });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Qaytarılmadı');
+      }
       fetchTrash();
     } catch (error) {
       console.error('Restore error:', error);
+      alert('Geri qaytarılarkən xəta: ' + error.message);
     }
   };
 
   const handlePermanentDelete = async (id) => {
     if (!window.confirm('Bu məlumatı həmişəlik silmək istədiyinizə əminsiniz? Bu əməliyyat geri qaytarıla bilməz!')) return;
     try {
-      await fetch(`/api/admin/trash/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/trash/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Silinmədi');
+      }
       fetchTrash();
     } catch (error) {
       console.error('Delete error:', error);
+      alert('Silinərkən xəta: ' + error.message);
     }
   };
 

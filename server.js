@@ -105,6 +105,10 @@ async function startServer() {
     res.status(404).json({ error: 'API marşrutu tapılmadı', path: req.path });
   });
 
+  app.use('/api', (req, res, next) => {
+    res.status(404).json({ error: 'API endpoint not found' });
+  });
+
   // Static files and Vite integration
   if (process.env.NODE_ENV !== 'production') {
     try {

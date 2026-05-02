@@ -9,14 +9,20 @@ service cloud.firestore {
     // --- Helpers ---
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function getUserData() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function getUserData() { 
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null; 
+    }
     function isAdmin() { 
+      let uData = getUserData();
       return isSignedIn() && (
         request.auth.token.email == 'revaneliyev133@gmail.com' ||
-        (getUserData() != null && getUserData().role == 'Admin')
+        (uData != null && uData.role == 'Admin')
       ); 
     }
-    function hasRole(role) { return isSignedIn() && getUserData().role == role; }
+    function hasRole(role) { 
+      let uData = getUserData();
+      return isSignedIn() && uData != null && uData.role == role; 
+    }
     function isEmailVerified() { return request.auth.token.email_verified == true; }
     
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }

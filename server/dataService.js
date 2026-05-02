@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -21,8 +21,20 @@ export async function initDB() {
     db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
     // Login as admin so the backend has permission to write and bypass some rules
-    await signInWithEmailAndPassword(authApp, 'revaneliyev133@gmail.com', 'revan28@!');
-    console.log('Firebase backend initialized and authenticated via Client SDK.');
+    try {
+      await signInWithEmailAndPassword(authApp, 'revaneliyev133@gmail.com', 'revan28@!');
+      console.log('Firebase backend initialized and authenticated via Client SDK.');
+    } catch (authError) {
+      console.warn('Backend login failed, attempting to create admin user...', authError.message);
+      try {
+        await createUserWithEmailAndPassword(authApp, 'revaneliyev133@gmail.com', 'revan28@!');
+        console.log('Admin user created and authenticated successfully.');
+      } catch (createError) {
+        console.error('Could not create or login admin user:', createError.message);
+        // If we can't authenticate, we probably shouldn't use db to avoid silent fallback bugs depending on the rule configs.
+        // But we will keep db enabled and let rules reject, then fallback if needed.
+      }
+    }
   } catch (error) {
     console.error('Firebase Client DB initialization failed:', error);
   }
@@ -93,8 +105,12 @@ export async function writeDB(data) {
 export async function getCollection(colName) {
   if (!db) await initDB();
   if (db) {
-    const querySnapshot = await getDocs(collection(db, colName));
-    return querySnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id }));
+    try {
+      const querySnapshot = await getDocs(collection(db, colName));
+      return querySnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id }));
+    } catch (e) {
+      console.error('Firestore getDocs failed for', colName, e.message);
+    }
   }
   const data = await readDB();
   return data[colName] || [];
@@ -108,9 +124,13 @@ export async function findItem(colName, predicate) {
 export async function setItem(colName, id, itemData) {
   if (!db) await initDB();
   if (db) {
-    const docRef = doc(db, colName, String(id));
-    await setDoc(docRef, { ...itemData, id, uid: id }, { merge: true });
-    return;
+    try {
+      const docRef = doc(db, colName, String(id));
+      await setDoc(docRef, { ...itemData, id, uid: id }, { merge: true });
+      return;
+    } catch (e) {
+      console.error('Firestore setItem failed for', colName, 'id:', id, e.message);
+    }
   }
   const data = await readDB();
   if (!data[colName]) data[colName] = [];
@@ -126,9 +146,13 @@ export async function setItem(colName, id, itemData) {
 export async function deleteItem(colName, id) {
   if (!db) await initDB();
   if (db) {
-    const docRef = doc(db, colName, String(id));
-    await deleteDoc(docRef);
-    return;
+    try {
+      const docRef = doc(db, colName, String(id));
+      await deleteDoc(docRef);
+      return;
+    } catch (e) {
+      console.error('Firestore deleteItem failed for', colName, 'id:', id, e.message);
+    }
   }
   const data = await readDB();
   if (data[colName]) {

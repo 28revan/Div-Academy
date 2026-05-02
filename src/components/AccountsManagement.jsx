@@ -21,6 +21,7 @@ export default function AccountsManagement() {
   const fetchUsers = async () => {
     try {
       const response = await fetch('/api/admin/users');
+      if (!response.ok) throw new Error('Failed to fetch users');
       const data = await response.json();
       setUsers(data);
       setLoading(false);
@@ -47,29 +48,39 @@ export default function AccountsManagement() {
     if (!window.confirm('Bu hesabı silmək istədiyinizə əminsiniz?')) return;
     try {
       const currentUser = AuthService.getCurrentUser();
-      await fetch(`/api/admin/users/${uid}`, { 
+      const res = await fetch(`/api/admin/users/${uid}`, { 
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deletedBy: currentUser?.name || 'Admin' })
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Silinmədi');
+      }
       fetchUsers();
     } catch (error) {
        console.error('Delete error:', error);
+       alert(error.message);
     }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`/api/admin/users/${editingUser.uid}`, {
+      const res = await fetch(`/api/admin/users/${editingUser.uid}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingUser)
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Yenilənmədi');
+      }
       setIsEditModalOpen(false);
       fetchUsers();
     } catch (error) {
       console.error('Update error:', error);
+      alert(error.message);
     }
   };
 

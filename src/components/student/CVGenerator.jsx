@@ -61,7 +61,7 @@ export default function CVGenerator({ user, projects }) {
 
     try {
       // Step 1: Send request to server
-      const response = await fetch('/api/cv/generate', {
+      const response = await fetch('/api/student/cv/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
