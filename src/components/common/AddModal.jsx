@@ -42,7 +42,11 @@ export default function AddModal({ type, isOpen, onClose, onAdd, teachers, mento
     setLoading(true);
     setError('');
     try {
-      await onAdd(formData);
+      const finalData = { ...formData };
+      if (type === 'students' && !finalData.status) {
+        finalData.status = StudentStatus.Active;
+      }
+      await onAdd(finalData);
       onClose();
       setFormData({});
     } catch (err) {

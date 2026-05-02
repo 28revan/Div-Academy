@@ -1,10 +1,10 @@
 import React from 'react';
-import { Edit2 } from 'lucide-react';
+import { Edit2, Trash2 } from 'lucide-react';
 
 import InfoCard from './InfoCard';
 import StatItem from './StatItem';
 
-export default function GroupCard({ group, onEdit, teachers, mentors }) {
+export default function GroupCard({ group, onEdit, onDelete, teachers, mentors }) {
   const isHealthy = group.avgGrade > 80;
   const teacher = teachers?.find(t => t.uid === group.teacherId);
   const mentor = mentors?.find(m => m.uid === group.mentorId);
@@ -14,12 +14,20 @@ export default function GroupCard({ group, onEdit, teachers, mentors }) {
       <div className="mb-4">
         <div className="flex justify-between items-start mb-2">
           <h4 className="text-lg md:text-xl font-black text-[#E2E2E2] group-hover:text-brand-orange transition-colors uppercase tracking-tight truncate mr-2">{group.name}</h4>
-          <button 
-            onClick={onEdit}
-            className="p-1.5 md:p-2 bg-[#2C2C30] rounded-lg text-gray-500 hover:text-brand-orange transition-all flex-shrink-0"
-          >
-            <Edit2 size={14} className="md:w-4 md:h-4" />
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={onEdit}
+              className="p-1.5 md:p-2 bg-[#2C2C30] rounded-lg text-gray-500 hover:text-brand-orange transition-all flex-shrink-0"
+            >
+              <Edit2 size={14} className="md:w-4 md:h-4" />
+            </button>
+            <button 
+              onClick={onDelete}
+              className="p-1.5 md:p-2 bg-red-500/10 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all flex-shrink-0"
+            >
+              <Trash2 size={14} className="md:w-4 md:h-4" />
+            </button>
+          </div>
         </div>
         <p className="text-[8px] md:text-[10px] text-gray-500 uppercase font-black tracking-widest">{isHealthy ? 'SAĞLAM QRUP' : 'RİSKLİ QRUP - DİQQƏT'}</p>
       </div>

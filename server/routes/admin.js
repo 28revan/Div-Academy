@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
-import { getCollection, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
+import { getCollection, findItem, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
 
 const router = express.Router();
 
@@ -50,7 +50,6 @@ router.post('/users', [
     createdAt: new Date().toISOString()
   };
   
-  data.users.push(newUser);
   await addLog(null, 'Admin', `Yeni istifadəçi əlavə edildi: ${newUser.name} (${newUser.role})`);
   await setItem('users', newUser.uid, newUser);
   res.status(201).json({ uid: newUser.uid, role: newUser.role, name: newUser.name });
@@ -142,9 +141,44 @@ router.patch('/groups/:id', async (req, res) => {
   res.json(updatedGroup);
 });
 
+router.delete('/groups/:id', async (req, res) => {
+  const { id } = req.params;
+  const { deletedBy } = req.body;
+  const group = await findItem('groups', g => g.id === id);
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+
+  const trashItem = {
+    id: Date.now().toString(),
+    type: 'Qrup',
+    data: group,
+    deletedBy: deletedBy || 'Admin',
+    deletedAt: new Date().toISOString()
+  };
+  
+  await setItem('trash', trashItem.id, trashItem);
+  await deleteItem('groups', id);
+  await addLog(null, 'Admin', `${group.name} adlı qrup silindi`);
+  res.json({ message: 'Group deleted' });
+});
+
 router.get('/trash', async (req, res) => {
   const trash = await getCollection('trash');
-  res.json(trash);
+  const now = new Date();
+  const validTrashItems = [];
+
+  for (const item of trash) {
+    const deletedAtDate = new Date(item.deletedAt);
+    const diffTime = Math.abs(now - deletedAtDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    
+    if (diffDays > 30) {
+      await deleteItem('trash', item.id);
+    } else {
+      validTrashItems.push(item);
+    }
+  }
+
+  res.json(validTrashItems);
 });
 
 router.delete('/trash/:id', async (req, res) => {
@@ -163,6 +197,17 @@ router.post('/trash/:id/restore', async (req, res) => {
   
   if (item.type === 'İstifadəçi') {
      await setItem('users', item.data.uid, item.data);
+  } else if (item.type === 'Qrup') {
+     await setItem('groups', item.data.id, item.data);
+  } else if (item.type === 'Tapşırıq') {
+     const groupId = item.data._groupId;
+     const group = await findItem('groups', g => g.id === groupId);
+     if (group) {
+        if (!group.tasks) group.tasks = [];
+        delete item.data._groupId;
+        group.tasks.push(item.data);
+        await setItem('groups', groupId, group);
+     }
   } else if (item.type === 'Layihə') {
      const ownerUid = item.data._ownerUid;
      const user = users.find(u => u.uid === ownerUid);

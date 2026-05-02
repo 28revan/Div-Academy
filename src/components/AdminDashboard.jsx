@@ -5,7 +5,7 @@ import {
   MoreVertical, ChevronDown, ChevronUp, Filter, 
   TrendingUp, Wallet, Users as UsersIcon, LayoutGrid, 
   List, GraduationCap, AlertTriangle, FileSpreadsheet, Shield,
-  BookOpen, Target, Settings, Briefcase, Zap, Star, Globe, LogOut
+  BookOpen, Target, Settings, Briefcase, Zap, Star, Globe, LogOut, Trash2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Role, StudentStatus } from '../constants';
@@ -16,6 +16,7 @@ import DetailItem from './common/DetailItem';
 import StatCard from './common/StatCard';
 import GroupCard from './common/GroupCard';
 import AddModal from './common/AddModal';
+import EditUserModal from './common/EditUserModal';
 import { ExcelService } from '../services/excelService';
 import { AuthService } from '../services/authService';
 
@@ -31,6 +32,7 @@ export default function AdminDashboard() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [selectedIds, setSelectedIds] = useState([]);
   const [editingGroup, setEditingGroup] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
@@ -77,6 +79,65 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleUpdateUser = async (uid, updates) => {
+    try {
+      const res = await fetch(`/api/admin/users/${uid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(()=>({}));
+        throw new Error(d.error || 'Yenilənmədi');
+      }
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const handleDeleteUser = async (uid) => {
+    if (!window.confirm('Bu istifadəçini silmək istədiyinizə əminsiniz?')) return;
+    try {
+      const res = await fetch(`/api/admin/users/${uid}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deletedBy: 'Admin' })
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(()=>({}));
+        throw new Error(d.error || 'Silinmədi');
+      }
+      fetchData();
+      setSelectedIds(prev => prev.filter(id => id !== uid));
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Silmə zamanı xəta baş verdi');
+    }
+  };
+
+  const handleDeleteGroup = async (id) => {
+    if (!window.confirm('Bu qrupu silmək istədiyinizə əminsiniz?')) return;
+    try {
+      const res = await fetch(`/api/admin/groups/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deletedBy: 'Admin' })
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(()=>({}));
+        throw new Error(d.error || 'Silinmədi');
+      }
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
     }
   };
 
@@ -347,6 +408,7 @@ export default function AdminDashboard() {
                      key={group.id} 
                      group={group} 
                      onEdit={() => setEditingGroup(group)}
+                     onDelete={() => handleDeleteGroup(group.id)}
                      teachers={users.filter(u => u.role === 'Teacher')}
                      mentors={users.filter(u => u.role === 'Mentor')}
                    />
@@ -440,8 +502,9 @@ export default function AdminDashboard() {
                                <td className="px-8 py-5 font-mono text-xs text-brand-text font-bold whitespace-nowrap">
                                   <span className={u.balance < 0 ? 'text-red-400' : 'text-green-400'}>{u.balance} AZN</span>
                                </td>
-                               <td className="px-8 py-5 text-right">
-                                  <button className="p-2.5 hover:bg-brand-surface rounded-xl text-gray-500 hover:text-brand-text transition-all group-hover:bg-brand-orange group-hover:text-brand-dark"><Edit2 size={14} /></button>
+                               <td className="px-8 py-5 text-right flex items-center justify-end gap-2">
+                                  <button onClick={() => setEditingUser(u)} className="p-2.5 hover:bg-brand-surface rounded-xl text-gray-500 hover:text-brand-text transition-all group-hover:bg-brand-orange group-hover:text-brand-dark"><Edit2 size={14} /></button>
+                                  <button onClick={() => handleDeleteUser(u.uid)} className="p-2.5 hover:bg-red-500/10 rounded-xl text-gray-500 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                                </td>
                             </motion.tr>
                         ))}
@@ -679,6 +742,14 @@ export default function AdminDashboard() {
         }}
         teachers={users.filter(u => u.role === Role.Teacher)}
         mentors={users.filter(u => u.role === Role.Mentor)}
+      />
+
+      <EditUserModal
+        user={editingUser}
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        onUpdate={handleUpdateUser}
+        onDelete={handleDeleteUser}
       />
     </div>
   );

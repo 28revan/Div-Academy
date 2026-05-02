@@ -193,7 +193,7 @@ export default function TeacherDashboard() {
 
            <div className="bg-brand-card rounded-[40px] border border-brand-border overflow-hidden">
               <div className="overflow-x-auto scrollbar-hide">
-                 <table className="w-full text-left">
+                 <table className="w-full text-left min-w-[700px]">
                     <thead>
                        <tr className="bg-brand-surface border-b border-brand-border">
                           <th className="px-8 py-5 text-[9px] font-black text-gray-500 uppercase tracking-widest">Tələbə Şəxs</th>
@@ -518,6 +518,22 @@ function GroupManagementView({ group, onBack, user }) {
     }
   };
 
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('Bu tapşırığı silmək istədiyinizə əminsiniz?')) return;
+    try {
+      const res = await fetch(`/api/tasks/${group.id}/${taskId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deletedBy: user.name })
+      });
+      if (!res.ok) throw new Error('Silinmədi');
+      fetchGroupData();
+    } catch (err) {
+      console.error(err);
+      alert('Təpşırıq silinərkən xəta baş verdi');
+    }
+  };
+
   const handleCreateTask = async (e) => {
     e.preventDefault();
     try {
@@ -718,7 +734,7 @@ function GroupManagementView({ group, onBack, user }) {
                 </div>
                 <div className="flex gap-3">
                    <button className="flex-1 py-3 bg-brand-surface border border-brand-border rounded-xl text-[10px] font-black uppercase tracking-widest text-brand-text">Redaktə et</button>
-                   <button className="p-3 bg-brand-surface border border-brand-border rounded-xl text-red-400"><Trash2 size={16} /></button>
+                   <button onClick={() => handleDeleteTask(task.id)} className="p-3 bg-brand-surface border border-brand-border rounded-xl text-red-400 hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}
@@ -819,7 +835,7 @@ function GroupManagementView({ group, onBack, user }) {
 
            <div className="bg-brand-card rounded-[32px] border border-brand-border overflow-hidden">
               <div className="overflow-x-auto scrollbar-hide">
-                 <table className="w-full text-left">
+                 <table className="w-full text-left min-w-[700px]">
                     <thead>
                        <tr className="bg-brand-surface border-b border-brand-border">
                           <th className="px-6 py-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">Tələbə</th>

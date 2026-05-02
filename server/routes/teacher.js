@@ -1,5 +1,5 @@
 import express from 'express';
-import { getCollection, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
+import { getCollection, findItem, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
 
 const router = express.Router();
 
@@ -49,6 +49,33 @@ router.patch('/tasks/:groupId/:taskId', async (req, res) => {
   res.json(group.tasks[taskIndex]);
 });
 
+router.delete('/tasks/:groupId/:taskId', async (req, res) => {
+  const { groupId, taskId } = req.params;
+  const { deletedBy } = req.body;
+  const group = await findItem('groups', g => g.id === groupId);
+  if (!group || !group.tasks) return res.status(404).json({ error: 'Group or tasks not found' });
+  
+  const taskIndex = group.tasks.findIndex(t => t.id === taskId);
+  if (taskIndex === -1) return res.status(404).json({ error: 'Task not found' });
+  
+  const task = group.tasks[taskIndex];
+  
+  const trashItem = {
+    id: Date.now().toString(),
+    type: 'Tapşırıq',
+    data: { ...task, _groupId: groupId },
+    deletedBy: deletedBy || 'Müəllim/Menecer',
+    deletedAt: new Date().toISOString()
+  };
+  
+  await setItem('trash', trashItem.id, trashItem);
+  
+  group.tasks.splice(taskIndex, 1);
+  await setItem('groups', groupId, group);
+  await addLog(null, deletedBy || 'Sistem', `${task.title} adlı tapşırıq silindi`);
+  res.json({ message: 'Task deleted' });
+});
+
 router.get('/attendance/:groupId', async (req, res) => {
   const { groupId } = req.params;
   const attendance = await getCollection('attendance');
@@ -68,7 +95,6 @@ router.post('/attendance/:groupId', async (req, res) => {
     createdAt: new Date().toISOString()
   };
   
-  data.attendance.push(newLog);
   await setItem('attendance', newLog.id, newLog);
 
   // Update student overall attendance

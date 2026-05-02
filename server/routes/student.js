@@ -1,5 +1,5 @@
 import express from 'express';
-import { getCollection, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
+import { getCollection, findItem, setItem, deleteItem, readDB, writeDB, addLog } from '../dataService.js';
 
 const router = express.Router();
 

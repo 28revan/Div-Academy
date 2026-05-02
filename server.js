@@ -32,99 +32,110 @@ const initializeApp = async () => {
   }
 };
 
-// Security Middlewares
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
-app.use(express.json({ limit: '1mb' }));
+async function startServer() {
+  // Security Middlewares
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  }));
+  app.use(express.json({ limit: '1mb' }));
 
-// Initialization middleware for Vercel/Serverless
-app.use(async (req, res, next) => {
-  if (!isInitialized) {
-    await initializeApp();
-  }
-  next();
-});
+  app.use((req, res, next) => {
+    console.log(`[HTTP] ${req.method} ${req.url}`);
+    next();
+  });
 
-// Ensure API responses are ALWAYS JSON and don't cache
-app.use('/api', (req, res, next) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  next();
-});
-
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/student', studentRoutes);
-app.use('/api', teacherRoutes);
-
-// Server-side CV Generation (Senior Security Implementation)
-app.post('/api/cv/generate', async (req, res) => {
-  try {
-    const { cvData, user, projects } = req.body;
-    
-    if (!user || !user.name) {
-       return res.status(400).json({ error: 'Tam məlumat təmin edilməyib' });
+  // Initialization middleware for Vercel/Serverless
+  app.use(async (req, res, next) => {
+    if (!isInitialized) {
+      await initializeApp();
     }
-
-    const buffer = await generateCVBuffer(cvData, user, projects);
-    
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(user.name)}_CV.docx"`);
-    res.send(buffer);
-  } catch (error) {
-    console.error('CV Generation Error:', error);
-    res.status(500).json({ error: 'Server tərəfində sənəd yaradılarkən xəta baş verdi' });
-  }
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', serverTime: new Date().toISOString() });
-});
-
-// Global API error handler
-app.use('/api', (err, req, res, next) => {
-  console.error('API Error:', err);
-  res.status(err.status || 500).json({ 
-    error: err.message || 'Daxili server xətası',
-    path: req.path
+    next();
   });
-});
 
-// API routes matched, anything else starting with /api is a 404 JSON
-app.all('/api/*', (req, res) => {
-  res.status(404).json({ error: 'API marşrutu tapılmadı', path: req.path });
-});
+  // Ensure API responses are ALWAYS JSON and don't cache
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    next();
+  });
 
-// Static files and Vite integration
-if (process.env.NODE_ENV !== 'production') {
-  import('vite').then(async ({ createServer: createViteServer }) => {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
+  // API Routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/student', studentRoutes);
+  app.use('/api', teacherRoutes);
+
+  // Server-side CV Generation (Senior Security Implementation)
+  app.post('/api/cv/generate', async (req, res) => {
+    try {
+      const { cvData, user, projects } = req.body;
+      
+      if (!user || !user.name) {
+         return res.status(400).json({ error: 'Tam məlumat təmin edilməyib' });
+      }
+
+      const buffer = await generateCVBuffer(cvData, user, projects);
+      
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(user.name)}_CV.docx"`);
+      res.send(buffer);
+    } catch (error) {
+      console.error('CV Generation Error:', error);
+      res.status(500).json({ error: 'Server tərəfində sənəd yaradılarkən xəta baş verdi' });
+    }
+  });
+
+  // Health check
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', serverTime: new Date().toISOString() });
+  });
+
+  // Global API error handler
+  app.use('/api', (err, req, res, next) => {
+    console.error('API Error:', err);
+    res.status(err.status || 500).json({ 
+      error: err.message || 'Daxili server xətası',
+      path: req.path
     });
-    app.use(vite.middlewares);
-  }).catch(err => console.error('Vite initialization failed', err));
-} else {
-  const distPath = path.join(process.cwd(), 'dist');
-  app.use(express.static(distPath));
-  
-  // SPA fallback for non-API routes
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
   });
-}
 
-// Startup
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  initializeApp().then(() => {
+  // API routes matched, anything else starting with /api is a 404 JSON
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: 'API marşrutu tapılmadı', path: req.path });
+  });
+
+  // Static files and Vite integration
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true, hmr: process.env.DISABLE_HMR !== 'true' },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (viteErr) {
+      console.error('Failed to initialize Vite middleware:', viteErr);
+    }
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    
+    // SPA fallback for non-API routes
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  // Startup
+  if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on http://0.0.0.0:${PORT}`);
     });
-  });
+  }
 }
 
-export default app;
+startServer().catch(err => {
+  console.error("FATAL ERROR IN startServer:", err);
+  process.exit(1);
+});

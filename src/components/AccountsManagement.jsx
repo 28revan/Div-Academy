@@ -143,7 +143,7 @@ export default function AccountsManagement() {
       {/* Users Table */}
       <div className="bg-brand-card rounded-[32px] border border-brand-border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left min-w-[700px]">
             <thead>
               <tr className="bg-brand-surface/50 border-b border-brand-border">
                 <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">İstifadəçi</th>
