@@ -18,14 +18,20 @@ router.post('/cv/generate', async (req, res) => {
 });
 
 router.get('/projects/:uid', async (req, res) => {
+  try {
   const { uid } = req.params;
   const users = await getCollection('users');
   const user = users.find(u => u.uid === uid);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user.projects || []);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/projects/:uid', async (req, res) => {
+  try {
   const { uid } = req.params;
   const project = req.body;
   const user = await findItem('users', u => u.uid === uid);
@@ -42,9 +48,14 @@ router.post('/projects/:uid', async (req, res) => {
   user.projects.push(newProject);
   await setItem('users', uid, user);
   res.status(201).json(newProject);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.delete('/projects/:uid/:projectId', async (req, res) => {
+  try {
   const { uid, projectId } = req.params;
   const { deletedBy } = req.body || {};
   const user = await findItem('users', u => u.uid === uid);
@@ -66,9 +77,14 @@ router.delete('/projects/:uid/:projectId', async (req, res) => {
     await setItem('users', uid, user);
   }
   res.json({ success: true });
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/submissions/:uid/:taskId', async (req, res) => {
+  try {
   const { uid, taskId } = req.params;
   const { githubLink } = req.body;
   
@@ -89,9 +105,14 @@ router.post('/submissions/:uid/:taskId', async (req, res) => {
   
   await setItem('submissions', submission.id, submission);
   res.status(201).json(submission);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.put('/profile/:uid', async (req, res) => {
+  try {
   const { uid } = req.params;
   const updates = req.body;
   const user = await findItem('users', u => u.uid === uid);
@@ -113,13 +134,22 @@ router.put('/profile/:uid', async (req, res) => {
 
   await setItem('users', uid, user);
   res.json(user);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.get('/logs/:uid', async (req, res) => {
+  try {
   const { uid } = req.params;
   const logs = await getCollection('logs');
   const userLogs = logs.filter(log => log.uid === uid);
   res.json(userLogs);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

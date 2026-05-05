@@ -7,6 +7,7 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lms-secret-key-123';
 
 router.post('/login', async (req, res) => {
+  try {
   const { email, password } = req.body;
   const users = await getCollection('users');
   let user = users.find((u) => u.email === email);
@@ -37,9 +38,14 @@ router.post('/login', async (req, res) => {
   
   const token = jwt.sign({ uid: user.uid, role: user.role }, JWT_SECRET);
   res.json({ token, user: { uid: user.uid, name: user.name, role: user.role } });
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/change-password', async (req, res) => {
+  try {
   const { currentPassword, newPassword, userId } = req.body;
   const users = await getCollection('users');
   const user = users.find(u => u.uid === userId);
@@ -73,6 +79,10 @@ router.post('/change-password', async (req, res) => {
   
   await setItem('users', user.uid, user);
   res.json({ message: 'Şifrə uğurla dəyişdirildi' });
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

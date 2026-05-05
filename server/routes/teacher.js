@@ -4,14 +4,20 @@ import { getCollection, findItem, setItem, deleteItem, readDB, writeDB, addLog }
 const router = express.Router();
 
 router.get('/tasks/:groupId', async (req, res) => {
+  try {
   const { groupId } = req.params;
   const groups = await getCollection('groups');
   const group = groups.find(g => g.id === groupId);
   if (!group) return res.status(404).json({ error: 'Group not found' });
   res.json(group.tasks || []);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/tasks/:groupId', async (req, res) => {
+  try {
   const { groupId } = req.params;
   const { teacherId, ...task } = req.body;
   const group = await findItem('groups', g => g.id === groupId);
@@ -33,9 +39,14 @@ router.post('/tasks/:groupId', async (req, res) => {
   
   await setItem('groups', groupId, group);
   res.status(201).json(newTask);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.patch('/tasks/:groupId/:taskId', async (req, res) => {
+  try {
   const { groupId, taskId } = req.params;
   const updates = req.body;
   const group = await findItem('groups', g => g.id === groupId);
@@ -47,9 +58,14 @@ router.patch('/tasks/:groupId/:taskId', async (req, res) => {
   group.tasks[taskIndex] = { ...group.tasks[taskIndex], ...updates };
   await setItem('groups', groupId, group);
   res.json(group.tasks[taskIndex]);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.delete('/tasks/:groupId/:taskId', async (req, res) => {
+  try {
   const { groupId, taskId } = req.params;
   const { deletedBy } = req.body;
   const group = await findItem('groups', g => g.id === groupId);
@@ -74,16 +90,26 @@ router.delete('/tasks/:groupId/:taskId', async (req, res) => {
   await setItem('groups', groupId, group);
   await addLog(null, deletedBy || 'Sistem', `${task.title} adlı tapşırıq silindi`);
   res.json({ message: 'Task deleted' });
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.get('/attendance/:groupId', async (req, res) => {
+  try {
   const { groupId } = req.params;
   const attendance = await getCollection('attendance');
   const filteredAttendance = attendance.filter(a => a.groupId === groupId);
   res.json(filteredAttendance);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/attendance/:groupId', async (req, res) => {
+  try {
   const { groupId } = req.params;
   const { date, records } = req.body; // records: [{ studentId, status: 'present'|'absent', note }]
   
@@ -114,9 +140,14 @@ router.post('/attendance/:groupId', async (req, res) => {
   }
 
   res.status(201).json(newLog);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post('/feedback/:studentId', async (req, res) => {
+  try {
   const { studentId } = req.params;
   const { teacherId, content, type } = req.body; // type: 'teacher' | 'mentor'
   const user = await findItem('users', u => u.uid === studentId);
@@ -135,18 +166,28 @@ router.post('/feedback/:studentId', async (req, res) => {
   user.feedbacks.push(newFeedback);
   await setItem('users', studentId, user);
   res.status(201).json(newFeedback);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.get('/submissions/group/:groupId', async (req, res) => {
+  try {
   const { groupId } = req.params;
   const users = await getCollection('users');
   const submissions = await getCollection('submissions');
   const groupUsers = users.filter(u => u.groupId === groupId).map(u => u.uid);
   const filteredSubmissions = submissions.filter(s => groupUsers.includes(s.uid));
   res.json(filteredSubmissions);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.patch('/submissions/:submissionId', async (req, res) => {
+  try {
   const { submissionId } = req.params;
   const { score, status, mentorFeedback } = req.body;
   const submission = await findItem('submissions', s => s.id === submissionId);
@@ -163,6 +204,10 @@ router.patch('/submissions/:submissionId', async (req, res) => {
   
   await setItem('submissions', submissionId, updatedSubmission);
   res.json(updatedSubmission);
+  } catch (error) {
+    console.error("Route Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

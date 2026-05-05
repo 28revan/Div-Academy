@@ -49,17 +49,8 @@ export default function EditUserModal({ user, isOpen, onClose, onUpdate, onDelet
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Bu istifadəçini silmək istədiyinizə əminsiniz?')) return;
-    setLoading(true);
-    setError('');
-    try {
-      await onDelete(user.uid);
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Silmə zamanı xəta baş verdi');
-    } finally {
-      setLoading(false);
-    }
+    onDelete(user.uid);
+    onClose();
   };
 
   const inputClass = "w-full bg-brand-surface border border-brand-border rounded-xl px-4 py-3 text-sm focus:border-brand-orange outline-none text-brand-text placeholder:text-gray-600 transition-all";

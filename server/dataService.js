@@ -110,6 +110,7 @@ export async function getCollection(colName) {
       return querySnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id }));
     } catch (e) {
       console.error('Firestore getDocs failed for', colName, e.message);
+      throw e;
     }
   }
   const data = await readDB();
@@ -130,6 +131,7 @@ export async function setItem(colName, id, itemData) {
       return;
     } catch (e) {
       console.error('Firestore setItem failed for', colName, 'id:', id, e.message);
+      throw e;
     }
   }
   const data = await readDB();
@@ -152,6 +154,7 @@ export async function deleteItem(colName, id) {
       return;
     } catch (e) {
       console.error('Firestore deleteItem failed for', colName, 'id:', id, e.message);
+      throw e;
     }
   }
   const data = await readDB();

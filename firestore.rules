@@ -43,6 +43,7 @@ service cloud.firestore {
 
       allow create: if (isAdmin() || (isOwner(userId) && incoming().role == 'Student')) && isValidUser(incoming());
       allow update: if (isAdmin() || (isOwner(userId) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'uid', 'email']))) && isValidUser(incoming());
+      allow delete: if isAdmin();
     }
 
     // --- Groups ---
