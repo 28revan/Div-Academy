@@ -11,6 +11,7 @@ import { AuthService } from '../services/authService';
 import { Role } from '../constants';
 
 import Header from './common/Header';
+import GroupJournal from './common/GroupJournal';
 
 export default function TeacherDashboard() {
   const [user] = useState(AuthService.getCurrentUser());
@@ -503,7 +504,7 @@ function GroupManagementView({ group, onBack, user }) {
       setTasks(fetchedTasks);
       setSubmissions(fetchedSubs);
       
-      const groupStudents = allUsers.filter(u => u.groupId === group.id && u.role === 'student');
+      const groupStudents = allUsers.filter(u => u.groupId === group.id && (u.role === 'Student' || u.role === 'student'));
       const rankedStudents = groupStudents.map(s => {
         const userSubs = fetchedSubs.filter(sub => sub.uid === s.uid && sub.score !== null);
         const avgScore = userSubs.length > 0 
@@ -928,98 +929,12 @@ function GroupManagementView({ group, onBack, user }) {
           key="journal"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
         >
-          <div className="flex justify-between items-center bg-brand-card p-8 rounded-[40px] border border-brand-border">
-             <div>
-                <h3 className="text-xl font-black text-brand-text uppercase">Elektron Jurnal</h3>
-                <p className="text-sm text-gray-500 italic mt-1">Bugünkü dərsin iştirakçılarını qeyd edin.</p>
-             </div>
-             {!isMarkingAttendance ? (
-               <button 
-                 onClick={() => setIsMarkingAttendance(true)}
-                 className="px-8 py-4 bg-brand-orange text-brand-dark rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-opacity-90 transition-all shadow-xl shadow-brand-orange/10"
-               >
-                 Davamiyyəti Qeyd Et
-               </button>
-             ) : (
-               <div className="flex gap-3">
-                  <button 
-                    onClick={() => setIsMarkingAttendance(false)}
-                    className="px-6 py-4 bg-brand-surface border border-brand-border text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest"
-                  >
-                    Ləğv Et
-                  </button>
-                  <button 
-                    onClick={handleMarkAttendance}
-                    className="px-8 py-4 bg-green-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-green-500/10"
-                  >
-                    Yadda Saxla
-                  </button>
-               </div>
-             )}
-          </div>
-
-          <div className="bg-brand-card rounded-[40px] border border-brand-border overflow-hidden">
-             <div className="overflow-x-auto">
-               <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-brand-surface border-b border-brand-border">
-                       <th className="px-6 py-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">Tələbə</th>
-                       <th className="px-6 py-4 text-[9px] font-black text-gray-500 uppercase tracking-widest">Status</th>
-                       <th className="px-6 py-4 text-[9px] font-black text-gray-500 uppercase tracking-widest text-right">Ümumi Davamiyyət</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-brand-border">
-                    {students.map(student => (
-                      <tr key={student.uid} className="hover:bg-brand-surface/50 transition-colors">
-                        <td className="px-6 py-4">
-                           <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center text-[10px] font-black text-brand-orange">
-                                 {student.name.charAt(0)}
-                              </div>
-                              <span className="text-sm font-bold text-brand-text">{student.name}</span>
-                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                           {isMarkingAttendance ? (
-                             <div className="flex gap-2">
-                                <button 
-                                  onClick={() => setNewAttendance(prev => ({ ...prev, [student.uid]: 'present' }))}
-                                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${newAttendance[student.uid] === 'present' ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-brand-surface text-gray-500 border border-brand-border'}`}
-                                >
-                                  İştirak
-                                </button>
-                                <button 
-                                  onClick={() => setNewAttendance(prev => ({ ...prev, [student.uid]: 'absent' }))}
-                                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${newAttendance[student.uid] === 'absent' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-brand-surface text-gray-500 border border-brand-border'}`}
-                                >
-                                  Qayıb
-                                </button>
-                             </div>
-                           ) : (
-                             <span className="text-[10px] text-gray-600 font-black uppercase opacity-50">Bugün üçün qeyd yoxdur</span>
-                           )}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                           <div className="inline-flex items-center gap-3">
-                              <div className="w-24 h-1.5 bg-brand-surface rounded-full overflow-hidden border border-brand-border">
-                                <div 
-                                  className={`h-full transition-all duration-1000 ${student.attendance < 75 ? 'bg-red-500' : 'bg-brand-orange'}`} 
-                                  style={{ width: `${student.attendance || 0}%` }}
-                                ></div>
-                              </div>
-                              <span className={`text-sm font-black font-mono ${student.attendance < 75 ? 'text-red-400' : 'text-brand-text'}`}>
-                                {student.attendance || 0}%
-                              </span>
-                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
-             </div>
-          </div>
+          <GroupJournal 
+            group={group} 
+            students={students} 
+            currentUser={user} 
+          />
         </motion.div>
       )}
 

@@ -17,6 +17,8 @@ import StatCard from './common/StatCard';
 import GroupCard from './common/GroupCard';
 import AddModal from './common/AddModal';
 import EditUserModal from './common/EditUserModal';
+import ConfirmModal from './common/ConfirmModal';
+import GroupJournal from './common/GroupJournal';
 import { ExcelService } from '../services/excelService';
 import { AuthService } from '../services/authService';
 
@@ -34,6 +36,23 @@ export default function AdminDashboard() {
   const [editingGroup, setEditingGroup] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [journalGroup, setJournalGroup] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, type: null, payload: null, title: '', message: '' });
+
+  const confirmAction = (type, payload, title, message) => {
+    setConfirmModal({ isOpen: true, type, payload, title, message });
+  };
+
+  const handleConfirm = () => {
+    const { type, payload } = confirmModal;
+    setConfirmModal({ isOpen: false, type: null, payload: null, title: '', message: '' });
+    if (type === 'user') executeDeleteUser(payload);
+    else if (type === 'group') executeDeleteGroup(payload);
+  };
+
+  const handleCancelConfirm = () => {
+    setConfirmModal({ isOpen: false, type: null, payload: null, title: '', message: '' });
+  };
 
   useEffect(() => {
     fetchData();
@@ -100,8 +119,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (uid) => {
-    if (!window.confirm('Bu istifadəçini silmək istədiyinizə əminsiniz?')) return;
+  const handleDeleteUser = (uid) => {
+    confirmAction('user', uid, 'İstifadəçini Sil', 'Bu istifadəçini silmək istədiyinizə əminsiniz?');
+  };
+
+  const executeDeleteUser = async (uid) => {
     try {
       const res = await fetch(`/api/admin/users/${uid}`, {
         method: 'DELETE',
@@ -120,8 +142,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteGroup = async (id) => {
-    if (!window.confirm('Bu qrupu silmək istədiyinizə əminsiniz?')) return;
+  const handleDeleteGroup = (id) => {
+    confirmAction('group', id, 'Qrupu Sil', 'Bu qrupu silmək istədiyinizə əminsiniz?');
+  };
+
+  const executeDeleteGroup = async (id) => {
     try {
       const res = await fetch(`/api/admin/groups/${id}`, {
         method: 'DELETE',
@@ -202,6 +227,24 @@ export default function AdminDashboard() {
   };
 
   const accent = getAccentStyles();
+
+  if (journalGroup) {
+    return (
+      <GroupJournal 
+        group={journalGroup} 
+        students={users.filter(u => u.groupId === journalGroup.id && (u.role === 'Student' || u.role === 'student'))}
+        currentUser={AuthService.getCurrentUser()}
+        customBack={
+          <button 
+            onClick={() => setJournalGroup(null)}
+            className="text-gray-500 hover:text-brand-orange transition-all font-black text-[10px] uppercase tracking-widest flex items-center gap-2 mb-6"
+          >
+            ← Geri Qayıt
+          </button>
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 md:space-y-10">
@@ -409,6 +452,7 @@ export default function AdminDashboard() {
                      group={group} 
                      onEdit={() => setEditingGroup(group)}
                      onDelete={() => handleDeleteGroup(group.id)}
+                     onJournal={() => setJournalGroup(group)}
                      teachers={users.filter(u => u.role === 'Teacher')}
                      mentors={users.filter(u => u.role === 'Mentor')}
                    />
@@ -503,8 +547,8 @@ export default function AdminDashboard() {
                                   <span className={u.balance < 0 ? 'text-red-400' : 'text-green-400'}>{u.balance} AZN</span>
                                </td>
                                <td className="px-8 py-5 text-right flex items-center justify-end gap-2">
-                                  <button onClick={() => setEditingUser(u)} className="p-2.5 hover:bg-brand-surface rounded-xl text-gray-500 hover:text-brand-text transition-all group-hover:bg-brand-orange group-hover:text-brand-dark"><Edit2 size={14} /></button>
-                                  <button onClick={() => handleDeleteUser(u.uid)} className="p-2.5 hover:bg-red-500/10 rounded-xl text-gray-500 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); setEditingUser(u); }} className="p-2.5 hover:bg-brand-surface rounded-xl text-gray-500 hover:text-brand-text transition-all group-hover:bg-brand-orange group-hover:text-brand-dark"><Edit2 size={14} /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.uid); }} className="p-2.5 hover:bg-red-500/10 rounded-xl text-gray-500 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                                </td>
                             </motion.tr>
                         ))}
@@ -750,6 +794,14 @@ export default function AdminDashboard() {
         onClose={() => setEditingUser(null)}
         onUpdate={handleUpdateUser}
         onDelete={handleDeleteUser}
+      />
+      
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onCancel={handleCancelConfirm}
+        onConfirm={handleConfirm}
       />
     </div>
   );

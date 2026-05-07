@@ -6,6 +6,8 @@ import { AuthService } from '../services/authService';
 import { Role } from '../constants';
 import StatusBadge from './common/StatusBadge';
 
+import ConfirmModal from './common/ConfirmModal';
+
 export default function AccountsManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +15,7 @@ export default function AccountsManagement() {
   const [filterRole, setFilterRole] = useState('All');
   const [editingUser, setEditingUser] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, uid: null });
 
   useEffect(() => {
     fetchUsers();
@@ -44,8 +47,13 @@ export default function AccountsManagement() {
     ExcelService.exportData(dataToExport, 'LMS_Hesablar_Hesabat');
   };
 
-  const handleDelete = async (uid) => {
-    if (!window.confirm('Bu hesabı silmək istədiyinizə əminsiniz?')) return;
+  const initiateDelete = (uid) => {
+    setConfirmModal({ isOpen: true, uid });
+  };
+
+  const executeDelete = async () => {
+    const { uid } = confirmModal;
+    setConfirmModal({ isOpen: false, uid: null });
     try {
       const currentUser = AuthService.getCurrentUser();
       const res = await fetch(`/api/admin/users/${uid}`, { 
@@ -199,7 +207,8 @@ export default function AccountsManagement() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setEditingUser(u);
                           setIsEditModalOpen(true);
                         }}
@@ -208,7 +217,10 @@ export default function AccountsManagement() {
                         <Edit2 size={16} />
                       </button>
                       <button 
-                        onClick={() => handleDelete(u.uid)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          initiateDelete(u.uid);
+                        }}
                         className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                       >
                         <Trash2 size={16} />
@@ -319,6 +331,11 @@ export default function AccountsManagement() {
           </div>
         )}
       </AnimatePresence>
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onCancel={() => setConfirmModal({ isOpen: false, uid: null })}
+        onConfirm={executeDelete}
+      />
     </div>
   );
 }

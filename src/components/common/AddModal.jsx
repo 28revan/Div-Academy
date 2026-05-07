@@ -37,6 +37,18 @@ export default function AddModal({ type, isOpen, onClose, onAdd, teachers, mento
     setError('');
   };
 
+  const getPasswordStrength = (pass) => {
+    if (!pass) return { score: 0, label: '', color: 'bg-transparent' };
+    let score = 0;
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+
+    if (score <= 1) return { score: 1, label: 'Zəif', color: 'bg-red-500 text-white' };
+    if (score === 2) return { score: 2, label: 'Orta', color: 'bg-yellow-500 text-white' };
+    return { score: 3, label: 'Güclü', color: 'bg-green-500 text-white' };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -104,6 +116,25 @@ export default function AddModal({ type, isOpen, onClose, onAdd, teachers, mento
                 <div className="space-y-1">
                   <label className={labelClass}>Email</label>
                   <input name="email" type="email" required placeholder="email@div.edu.az" className={inputClass} onChange={handleChange} />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Şifrə</label>
+                  <input name="password" type="text" placeholder="Şifrə (boş buraxılsa standart şifrə təyin ediləcək)" className={inputClass} onChange={handleChange} />
+                  
+                  {formData.password && (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex gap-1">
+                        <div className={`h-1.5 flex-1 rounded-full ${getPasswordStrength(formData.password).score >= 1 ? (getPasswordStrength(formData.password).score === 1 ? 'bg-red-500' : getPasswordStrength(formData.password).score === 2 ? 'bg-yellow-500' : 'bg-green-500') : 'bg-brand-surface border border-brand-border'}`}></div>
+                        <div className={`h-1.5 flex-1 rounded-full ${getPasswordStrength(formData.password).score >= 2 ? (getPasswordStrength(formData.password).score === 2 ? 'bg-yellow-500' : 'bg-green-500') : 'bg-brand-surface border border-brand-border'}`}></div>
+                        <div className={`h-1.5 flex-1 rounded-full ${getPasswordStrength(formData.password).score >= 3 ? 'bg-green-500' : 'bg-brand-surface border border-brand-border'}`}></div>
+                      </div>
+                      <div className={`text-[9px] font-bold uppercase tracking-widest ${getPasswordStrength(formData.password).score === 1 ? 'text-red-500' : getPasswordStrength(formData.password).score === 2 ? 'text-yellow-500' : 'text-green-500'}`}>
+                        {getPasswordStrength(formData.password).label} Şifrə
+                      </div>
+                    </div>
+                  )}
+                  
+                  <p className="text-[9px] text-gray-500 mt-1">Minimum 8 simvol, böyük hərf və rəqəm tövsiyə olunur</p>
                 </div>
                 {type === 'students' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

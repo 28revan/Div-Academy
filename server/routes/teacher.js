@@ -113,33 +113,56 @@ router.post('/attendance/:groupId', async (req, res) => {
   const { groupId } = req.params;
   const { date, records } = req.body; // records: [{ studentId, status: 'present'|'absent', note }]
   
-  const newLog = {
-    id: Date.now().toString(),
-    groupId,
-    date,
-    records,
-    createdAt: new Date().toISOString()
-  };
-  
-  await setItem('attendance', newLog.id, newLog);
+  const allAtt = await getCollection('attendance');
+  // Check if a log for this date and group already exists
+  const existingLog = allAtt.find(a => a.groupId === groupId && a.date === date);
 
-  // Update student overall attendance
-  for (const record of records) {
-    const user = await findItem('users', u => u.uid === record.studentId);
+  let logId;
+  let isUpdate = false;
+  
+  if (existingLog) {
+    isUpdate = true;
+    logId = existingLog.id;
+    existingLog.records = records;
+    existingLog.updatedAt = new Date().toISOString();
+    await setItem('attendance', logId, existingLog);
+  } else {
+    logId = Date.now().toString();
+    const newLog = {
+      id: logId,
+      groupId,
+      date,
+      records,
+      createdAt: new Date().toISOString()
+    };
+    await setItem('attendance', logId, newLog);
+  }
+
+  // We should ideally recalculate attendance properly by traversing all logs for a user, 
+  // but for simplicity we will just do a full recalculation here.
+  const allUpdatedAtt = await getCollection('attendance');
+  const userIds = [...new Set(records.map(r => r.studentId))];
+  
+  for (const uid of userIds) {
+    const user = await findItem('users', u => u.uid === uid);
     if (user) {
-      if (!user.attendedLessons) user.attendedLessons = 0;
-      if (!user.totalLessons) user.totalLessons = 0;
-      
-      user.totalLessons += 1;
-      if (record.status === 'present') {
-        user.attendedLessons += 1;
-      }
-      user.attendance = Math.round((user.attendedLessons / user.totalLessons) * 100);
+      let attended = 0;
+      let total = 0;
+      allUpdatedAtt.forEach(attLog => {
+        const matchingRecord = attLog.records?.find(r => r.studentId === uid);
+        if (matchingRecord) {
+          total += 1;
+          if (matchingRecord.status === 'present') attended += 1;
+        }
+      });
+      user.totalLessons = total;
+      user.attendedLessons = attended;
+      user.attendance = total > 0 ? Math.round((attended / total) * 100) : 0;
       await setItem('users', user.uid, user);
     }
   }
 
-  res.status(201).json(newLog);
+  res.status(201).json({ id: logId, message: isUpdate ? 'Updated' : 'Created' });
   } catch (error) {
     console.error("Route Error:", error);
     res.status(500).json({ error: error.message });

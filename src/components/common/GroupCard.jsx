@@ -4,7 +4,7 @@ import { Edit2, Trash2 } from 'lucide-react';
 import InfoCard from './InfoCard';
 import StatItem from './StatItem';
 
-export default function GroupCard({ group, onEdit, onDelete, teachers, mentors }) {
+export default function GroupCard({ group, onEdit, onDelete, onJournal, teachers, mentors }) {
   const isHealthy = group.avgGrade > 80;
   const teacher = teachers?.find(t => t.uid === group.teacherId);
   const mentor = mentors?.find(m => m.uid === group.mentorId);
@@ -88,7 +88,7 @@ export default function GroupCard({ group, onEdit, onDelete, teachers, mentors }
       </div>
 
       <div className="mt-6 pt-4 border-t border-[#242427] flex gap-2">
-        <button className="flex-1 text-[10px] font-black uppercase tracking-widest bg-brand-orange/10 text-brand-orange py-2.5 rounded-xl border border-brand-orange/20 hover:bg-brand-orange hover:text-brand-dark transition-all">
+        <button onClick={onJournal} className="flex-1 text-[10px] font-black uppercase tracking-widest bg-brand-orange/10 text-brand-orange py-2.5 rounded-xl border border-brand-orange/20 hover:bg-brand-orange hover:text-brand-dark transition-all">
           Journal
         </button>
         <button className="flex-1 text-[10px] font-black uppercase tracking-widest bg-[#2C2C30] text-gray-400 py-2.5 rounded-xl hover:text-[#E2E2E2] transition-all">

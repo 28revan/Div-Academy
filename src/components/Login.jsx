@@ -62,7 +62,7 @@ export default function Login({ onLogin }) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-[#1E1E21] border border-[#2C2C30] text-[#E2E2E2] rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all text-sm"
-                    placeholder="revaneliyev133@gmail.com"
+                    placeholder="Emailinizi Daxil Edin"
                     required
                   />
                 </div>
@@ -79,7 +79,7 @@ export default function Login({ onLogin }) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-[#1E1E21] border border-[#2C2C30] text-[#E2E2E2] rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-orange/20 focus:border-brand-orange transition-all text-sm"
-                    placeholder="revan28@!"
+                    placeholder="Şifrənizi Daxil Edin"
                     required
                   />
                 </div>
