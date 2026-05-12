@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { initDB } from './server/dataService.js';
-import { seedDB } from './server/seed.js';
 
 // Routes
 import authRoutes from './server/routes/auth.js';
@@ -48,7 +47,6 @@ const initializeApp = async () => {
   if (isInitialized) return;
   try {
     await initDB();
-    await seedDB();
     isInitialized = true;
     console.log('Database initialized successfully');
   } catch (error) {

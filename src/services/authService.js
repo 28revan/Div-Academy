@@ -7,8 +7,8 @@ export const AuthService = {
     try {
       const response = await api.post('/auth/login', { email, password });
       const data = response.data;
-      // LocalStorage-da yalnız userin ümumi məlumatları saxlanılır, token artıq cookiedədir.
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // sessionStorage-da yalnız userin ümumi məlumatları saxlanılır, token artıq cookiedədir.
+      sessionStorage.setItem('user', JSON.stringify(data.user));
       return data;
     } catch (error) {
       if (error.response && error.response.data && error.response.data.error) {
@@ -25,12 +25,14 @@ export const AuthService = {
       console.error("Firebase logout error", e);
     }
     // Gələcəkdə Serverə /logout axını əlavə edib cookie-ni də poza bilərsiniz
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
     window.location.href = '/login';
   },
 
   getCurrentUser() {
-    const user = localStorage.getItem('user');
+    // Legacy təmizləmə
+    localStorage.removeItem('user');
+    const user = sessionStorage.getItem('user');
     return user ? JSON.parse(user) : null;
   },
 
@@ -40,6 +42,6 @@ export const AuthService = {
   },
 
   updateCurrentUser(userData) {
-    localStorage.setItem('user', JSON.stringify(userData));
+    sessionStorage.setItem('user', JSON.stringify(userData));
   }
 };

@@ -16,7 +16,7 @@ api.interceptors.response.use(
     // Əgər tokenin vaxtı bitibsə və ya icazə yoxdursa, avtomatik login səhifəsinə yönləndirə bilərsiniz
     if (error.response && error.response.status === 401) {
       if (window.location.pathname !== '/login') {
-        localStorage.removeItem('user'); // Yalnız istifadəçi məlumatları (token onsuzda cookiedədir)
+        sessionStorage.removeItem('user'); // Yalnız istifadəçi məlumatları (token onsuzda cookiedədir)
         window.location.href = '/login';
       }
     }

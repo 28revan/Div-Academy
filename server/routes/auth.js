@@ -78,7 +78,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors[0].message });
     }
-    res.status(500).json({ error: 'Server xətası baş verdi' });
+    res.status(500).json({ error: 'Server xətası: ' + error.message });
   }
 });
 

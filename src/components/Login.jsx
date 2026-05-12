@@ -102,9 +102,6 @@ export default function Login({ onLogin }) {
               <p className="text-[10px] text-gray-600 font-mono tracking-tighter">
                 SECURE AUTH GATEWAY v2.0
               </p>
-              <p className="text-[10px] text-gray-700 font-mono mt-1">
-                Admin: revaneliyev133@gmail.com / revan28@!
-              </p>
             </div>
           </div>
         </div>

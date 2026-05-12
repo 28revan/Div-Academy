@@ -55,6 +55,7 @@ export async function readDB() {
       return data;
     } catch (error) {
       console.error('Firestore client read failed:', error.message);
+      // Proceed to fallback
     }
   }
 
@@ -72,31 +73,7 @@ export async function readDB() {
 export async function writeDB(data) {
   memoryDB = data;
   
-  if (db) {
-    try {
-      const collections = ['users', 'groups', 'tasks', 'submissions', 'logs', 'attendance', 'trash'];
-      for (const colName of collections) {
-        if (data[colName] && Array.isArray(data[colName])) {
-           const items = data[colName];
-           for (let i = 0; i < items.length; i += 450) {
-             const chunk = items.slice(i, i + 450);
-             const batch = writeBatch(db);
-             for (const item of chunk) {
-                const id = String(item.uid || item.id || Date.now().toString());
-                const { id: _, uid: __, ...rest } = item;
-                const docRef = doc(db, colName, id);
-                batch.set(docRef, { ...rest, id, uid: id }, { merge: true });
-             }
-             await batch.commit();
-           }
-        }
-      }
-      return;
-    } catch (error) {
-      console.error('Firestore batch write failed:', error.message);
-    }
-  }
-
+  // Only write to the local file, avoid destructive bulk overwrites to Firestore
   try {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
   } catch (error) {}
@@ -110,7 +87,7 @@ export async function getCollection(colName) {
       return querySnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id }));
     } catch (e) {
       console.error('Firestore getDocs failed for', colName, e.message);
-      throw e;
+      // Fallback to local DB on error (e.g. Permission Denied)
     }
   }
   const data = await readDB();
@@ -131,7 +108,7 @@ export async function setItem(colName, id, itemData) {
       return;
     } catch (e) {
       console.error('Firestore setItem failed for', colName, 'id:', id, e.message);
-      throw e;
+      // Fallback
     }
   }
   const data = await readDB();
@@ -154,7 +131,7 @@ export async function deleteItem(colName, id) {
       return;
     } catch (e) {
       console.error('Firestore deleteItem failed for', colName, 'id:', id, e.message);
-      throw e;
+      // Fallback
     }
   }
   const data = await readDB();
