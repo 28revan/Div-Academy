@@ -1,33 +1,21 @@
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
-
-const API_BASE = '/api';
+import api from './api';
 
 export const AuthService = {
   async login(email, password) {
-    const response = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      const snippet = text.substring(0, 100).replace(/<[^>]*>/g, '').trim();
-      console.error('Non-JSON response from server:', text);
-      throw new Error(`Server JSON cavabı qaytarmadı. Cavab başlığı: "${snippet}...". API marşrutu düzgün qurulmayıb və ya serverdə xəta baş verib.`);
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const data = response.data;
+      // LocalStorage-da yalnız userin ümumi məlumatları saxlanılır, token artıq cookiedədir.
+      localStorage.setItem('user', JSON.stringify(data.user));
+      return data;
+    } catch (error) {
+      if (error.response && error.response.data && error.response.data.error) {
+        throw new Error(error.response.data.error);
+      }
+      throw new Error('Giriş xətası baş verdi.');
     }
-    
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Login failed');
-    }
-    
-    const data = await response.json();
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    return data;
   },
 
   async logout() {
@@ -36,8 +24,9 @@ export const AuthService = {
     } catch(e) {
       console.error("Firebase logout error", e);
     }
-    localStorage.removeItem('token');
+    // Gələcəkdə Serverə /logout axını əlavə edib cookie-ni də poza bilərsiniz
     localStorage.removeItem('user');
+    window.location.href = '/login';
   },
 
   getCurrentUser() {
@@ -45,8 +34,9 @@ export const AuthService = {
     return user ? JSON.parse(user) : null;
   },
 
+  // Token artıq HttpOnly cookiedə olduğu üçün bu funksiyaya ehtiyac yoxdur, amma uyğunluq üçün null qaytarırıq.
   getToken() {
-    return localStorage.getItem('token');
+    return null;
   },
 
   updateCurrentUser(userData) {

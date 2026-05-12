@@ -20,7 +20,11 @@ export default function Login({ onLogin }) {
       onLogin(data.user);
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Giriş uğursuz oldu');
+      if (err.message === 'Invalid credentials' || err.message === 'Giriş uğursuz oldu') {
+        setError('Daxil etdiyiniz E-poçt və ya şifrə yanlışdır.');
+      } else {
+        setError(err.message || 'Giriş uğursuz oldu');
+      }
     } finally {
       setLoading(false);
     }

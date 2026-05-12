@@ -104,6 +104,23 @@ function MainLayout({ user, handleLogout }) {
     });
   };
 
+  const getPageTitle = (path) => {
+    switch(path) {
+      case '/': return 'Panel';
+      case '/admin/users': return 'Tələbələr';
+      case '/admin/teachers': return 'Müəllimlər';
+      case '/admin/mentors': return 'Mentorlar';
+      case '/admin/groups': return 'Qruplar';
+      case '/admin/team': return 'Admins';
+      case '/admin/accounts': return 'Hesablar';
+      case '/admin/logs': return 'Aktivlik';
+      case '/admin/trash': return 'Zibil Qutusu';
+      default: return '';
+    }
+  };
+
+  const pageTitle = getPageTitle(location.pathname);
+
   return (
     <div className="h-screen w-full bg-brand-dark text-[#E2E2E2] flex font-sans overflow-hidden relative">
         {/* Mobile Sidebar Overlay */}
@@ -140,6 +157,7 @@ function MainLayout({ user, handleLogout }) {
               </button>
               <h1 className="text-xs font-black uppercase tracking-tighter text-gray-500 truncate hidden xl:block">
                 Sistem / <span className="text-brand-text">{user.role}</span>
+                {pageTitle && <span className="text-brand-orange ml-2">/ {pageTitle}</span>}
               </h1>
             </div>
 
@@ -179,14 +197,21 @@ function MainLayout({ user, handleLogout }) {
                     user.role === Role.Mentor ? <TeacherDashboard /> : 
                     <StudentDashboard />
                   } />
-                  <Route path="/admin/users" element={<AdminDashboard />} />
-                  <Route path="/admin/teachers" element={<AdminDashboard />} />
-                  <Route path="/admin/mentors" element={<AdminDashboard />} />
-                  <Route path="/admin/groups" element={<AdminDashboard />} />
-                  <Route path="/admin/team" element={<AdminsList />} />
-                  <Route path="/admin/accounts" element={<AccountsManagement />} />
-                  <Route path="/admin/logs" element={<ActivityLog />} />
-                  <Route path="/admin/trash" element={<TrashBin />} />
+                  <Route path="/admin/*" element={
+                    user.role === Role.Admin ? (
+                      <Routes>
+                        <Route path="users" element={<AdminDashboard />} />
+                        <Route path="teachers" element={<AdminDashboard />} />
+                        <Route path="mentors" element={<AdminDashboard />} />
+                        <Route path="groups" element={<AdminDashboard />} />
+                        <Route path="team" element={<AdminsList />} />
+                        <Route path="accounts" element={<AccountsManagement />} />
+                        <Route path="logs" element={<ActivityLog />} />
+                        <Route path="trash" element={<TrashBin />} />
+                        <Route path="*" element={<Navigate to="/" />} />
+                      </Routes>
+                    ) : <Navigate to="/" />
+                  } />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </motion.div>

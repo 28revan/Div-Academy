@@ -2,6 +2,8 @@ import express from 'express';
 import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 import { initDB } from './server/dataService.js';
 import { seedDB } from './server/seed.js';
 
@@ -17,7 +19,28 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 
 export const app = express();
-export default app;
+app.set('trust proxy', 1);
+
+// SECURITY: Disable X-Powered-By header to prevent technology fingerprinting
+app.disable('x-powered-by');
+
+// SECURITY: Global Rate Limiting (DDoS qorunması üçün. Hər IP-dən 15 dəqiqə ərzində max 1000 sorğu)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 1000,
+  message: 'Həddindən artıq sorğu göndərilib. Zəhmət olmasa biraz sonra yenidən cəhd edin.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+// SECURITY: Global Rate Limiting
+// Xüsusi xəta idarə olunmasını asanlaşdırmaq üçün
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// SECURITY: Təhlükəsiz cookie'lərin oxunması üçün
+app.use(cookieParser());
 
 // Initialization singleton
 let isInitialized = false;
@@ -136,6 +159,7 @@ async function startServer() {
   }
 }
 
+export default app;
 startServer().catch(err => {
   console.error("FATAL ERROR IN startServer:", err);
   process.exit(1);

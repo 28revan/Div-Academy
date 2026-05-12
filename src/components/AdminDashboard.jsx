@@ -260,7 +260,7 @@ export default function AdminDashboard() {
             <span className={`text-[9px] font-black uppercase tracking-[0.3em] ${accent.text}/80`}>Div Academy / LMS</span>
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-black tracking-tighter text-brand-text uppercase mb-3 leading-tight">
-            {activeMainTab === 'panel' ? 'Ümumi İcmal' :
+            {activeMainTab === 'panel' ? 'Ümumi İcma' :
               activeMainTab === 'students' ? 'Tələbə Portalı' : 
               activeMainTab === 'teachers' ? 'Müəllim Heyəti' : 
               activeMainTab === 'mentors' ? 'Mentor Şəbəkəsi' : 'Qrup İdarəetməsi'}

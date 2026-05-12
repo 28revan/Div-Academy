@@ -76,12 +76,13 @@ export async function seedDB() {
   );
 
   // Students
-  const firstNames = ['Elvin', 'Aysel', 'Nigar', 'Orxan', 'Zaur', 'Leyla', 'Murad', 'Səbinə', 'Tural', 'Günay'];
-  const lastNames = ['Məmmədov', 'Hüseynova', 'Əliyeva', 'Qasımov', 'Bağırov', 'Səfərova', 'Rzayev', 'Kərimova', 'Piriyev', 'Tağıyeva'];
+  const firstNames = ['Elvin', 'Aysel', 'Nigar', 'Orxan', 'Zaur', 'Leyla', 'Murad', 'Səbinə', 'Tural', 'Günay', 'Ramin', 'Cəmalə', 'Samir', 'Vüsalə', 'Emin', 'Fərid', 'Nərmin', 'Kənan', 'Ülviyyə', 'Rəşad'];
+  const lastNames = ['Məmmədov', 'Hüseynova', 'Əliyeva', 'Qasımov', 'Bağırov', 'Səfərova', 'Rzayev', 'Kərimova', 'Piriyev', 'Tağıyeva', 'Həsənov', 'İsmayılov', 'Quliyeva', 'Musayev', 'Əsgərov', 'Zeynalov', 'Süleymanova', 'Şirinov', 'Vəliyeva', 'Muradov'];
   
-  for(let i=0; i < 20; i++) {
+  for(let i=0; i < 40; i++) {
     const fName = firstNames[i % firstNames.length];
     const lName = lastNames[i % lastNames.length];
+    const groupId = i < 20 ? 'g-1' : 'g-2';
     
     data.users.push({
       uid: `s-${i}`,
@@ -92,13 +93,17 @@ export async function seedDB() {
       status: 'Aktiv',
       balance: 0,
       scholarship: `${[0, 20, 50, 100][i % 4]}%`,
-      attendance: 85 + (i % 15), // Random attendance for seed
+      attendance: 85 + (i % 15), 
       totalLessons: 40,
       attendedLessons: Math.floor(40 * (0.85 + (i % 15) / 100)),
-      groupId: i < 5 ? 'g-1' : 'g-2',
+      groupId: groupId,
       projects: [],
       passwordChangeHistory: [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      // Additional personal details
+      phone: `+9945${[0, 1, 5][i % 3]} ${Math.floor(100 + Math.random() * 900)} ${Math.floor(10 + Math.random() * 90)} ${Math.floor(10 + Math.random() * 90)}`,
+      birthDate: `${1995 + (i % 10)}-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`,
+      address: 'Bakı şəhəri'
     });
   }
 
